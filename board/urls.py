@@ -3,6 +3,7 @@ from . import views
 
 urlpatterns = [
     path('startup', views.startup),
+    path('register', views.register),
     path('login', views.login),
     path('boards', views.boards),
     # TODO Start: [Student] add routing paths for `boards/<index>` and `user/<userName>`
