@@ -7,26 +7,28 @@ from utils.utils_require import MAX_CHAR_LENGTH
 # Create your models here.
 
 class User(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=MAX_CHAR_LENGTH, unique=True)
+    userid = models.BigAutoField(primary_key=True)
+    username = models.CharField(max_length=MAX_CHAR_LENGTH, unique=True)
     password = models.CharField(max_length=MAX_CHAR_LENGTH)
     created_time = models.FloatField(default=utils_time.get_timestamp)
+    email = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
+    phone_number = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
     
     class Meta:
-        indexes = [models.Index(fields=["name"])]
+        indexes = [models.Index(fields=["username"])]
         
     def serialize(self):
         boards = Board.objects.filter(user=self)
         return {
-            "id": self.id, 
-            "name": self.name, 
+            "userid": self.userid, 
+            "username": self.username, 
             "createdAt": self.created_time,
-            "boards": [ return_field(board.serialize(), ["id", "boardName", "userName", "createdAt"])
+            "boards": [ return_field(board.serialize(), ["id", "boardName", "username", "createdAt"])
                        for board in boards ]
         }
     
     def __str__(self) -> str:
-        return self.name
+        return self.username
 
 
 class Board(models.Model):
