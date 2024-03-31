@@ -1,7 +1,15 @@
 import json
 from django.http import HttpRequest, HttpResponse
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.models import User
+from django.shortcuts import render, redirect
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-from .models import Board, User
+
+from .models import Board, User, Friendship
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
 from utils.utils_require import MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, PHONE_NUMBER_LENGTH, CheckRequire, require
 from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
@@ -15,10 +23,8 @@ def startup(req: HttpRequest):
 
 
 @CheckRequire
+@api_view(["POST"])
 def register(req: HttpRequest):
-    if req.method != "POST":
-        return BAD_METHOD
-    
     body = json.loads(req.body.decode("utf-8"))
     username = require(body, "username", "string", err_msg="Missing or error type of [userName]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
@@ -52,25 +58,25 @@ def register(req: HttpRequest):
 
 
 @CheckRequire
+@api_view(["POST"])
 def login(req: HttpRequest):
-    if req.method != "POST":
-        return BAD_METHOD
-    
     # Request body example: {"username": "Ashitemaru", "password": "123456"}
     body = json.loads(req.body.decode("utf-8"))
     
     username = require(body, "username", "string", err_msg="Missing or error type of [username]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
     
-    # If the user exists and the password is correct, return request_success
-    # Else return request_failed
-    try:
-        user = User.objects.get(username=username)
-        if user.password == password:
-            return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username)})
-    except:
-        pass
-    return request_failed(2, "Wrong username or wrong password", 401)
+    user = authenticate(req, username=username, password=password)
+    if user:
+        login(req, user)
+        return redirect('home')
+    else:
+        return request_failed(2, "Invalid username or password", 401)
+
+@CheckRequire
+def logout(req: HttpRequest):
+    logout(req)
+    return HttpResponse("Logged out successfully")
         
         
 def check_for_board_data(body):
@@ -94,6 +100,15 @@ def check_for_board_data(body):
     # TODO End: [Student] add more checks (you should read API docs carefully)
     
     return board, board_name, user_name
+
+
+@CheckRequire
+@api_view(["DELETE"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def delete_account(req: HttpRequest):
+    req.user.delete()
+    return request_success()
 
 
 @CheckRequire
@@ -152,6 +167,8 @@ def boards(req: HttpRequest):
         
     else:
         return BAD_METHOD
+    
+    
 
 
 @CheckRequire
@@ -208,3 +225,22 @@ def user_board(req: HttpRequest, username: any):
     except:
         return request_failed(1, "User not found", status_code=404)
 # TODO End: [Student] Finish view function for user_board
+
+
+@CheckRequire
+@api_view(["DELETE"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def delete_friend(req: HttpRequest):
+    body = json.loads(req.body)
+    friend_id = require(body, "friend_id")
+    user_id = require(body, "userid")
+    min_id = min(user_id, friend_id)
+    max_id = max(user_id, friend_id)
+    try:
+        user1 = User.objects.get(userid=min_id)
+        user2 = User.objects.get(userid=max_id)
+        friendship = Friendship.objects.get(user1=user1, user2=user2)
+        friendship.delete()
+    except:
+        return request_failed(1, "Target user not in friend list", status_code=404)
