@@ -22,14 +22,50 @@ class User(models.Model):
         return {
             "userid": self.userid, 
             "username": self.username, 
-            "createdAt": self.created_time,
+            "created_time": self.created_time,
             "boards": [ return_field(board.serialize(), ["id", "boardName", "username", "createdAt"])
                        for board in boards ]
         }
     
-    def __str__(self) -> str:
-        return self.username
+    
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    friends = models.ManyToManyField(User, blank=True)
+    groups = models.ManyToManyField('Group', blank=True)
+    
+    
+class Friendship(models.Model):
+    user1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friends1")  
+    user2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friends2')
+    
+    class Meta:
+        unique_together = ('user1', 'user2')  
+    
 
+class PrivateChat(models.Model):
+    members = models.ManyToManyField(User, blank=True)
+    messages = models.ManyToManyField('Message', blank=True)
+
+    def serialize(self):
+        return {
+            "members": [ return_field(member.serialize(), ["userid", "username"])
+                         for member in self.members.all() ],
+            "messages": [ return_field(message.serialize(), ["sender", "receiver", "content", "timestamp"])
+                           for message in self.messages.all() ]
+        }
+    
+class Message(models.Model):
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="sent_messages")
+    receiver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="received_messages")
+    private_chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="messages")
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    
+class Group(models.Model):
+    groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
+    members = models.ManyToManyField(UserProfile, blank=True)
+    
 
 class Board(models.Model):
     # TODO Start: [Student] Finish the model of Board
