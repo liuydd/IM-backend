@@ -9,3 +9,4 @@ django-cors-headers
 pytest
 pytest-django
 coverage
+rest_framework
