@@ -1,6 +1,6 @@
 import json
 from django.http import HttpRequest, HttpResponse
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
@@ -59,7 +59,7 @@ def register(req: HttpRequest):
 
 @CheckRequire
 @api_view(["POST"])
-def login(req: HttpRequest):
+def user_login(req: HttpRequest):
     # Request body example: {"username": "Ashitemaru", "password": "123456"}
     body = json.loads(req.body.decode("utf-8"))
     
@@ -69,12 +69,19 @@ def login(req: HttpRequest):
     user = authenticate(req, username=username, password=password)
     if user:
         login(req, user)
-        return redirect('home')
+        access_token = generate_jwt_token(username)
+        return request_success({"code": 0, "info": "Succeed", "token": access_token})
     else:
         return request_failed(2, "Invalid username or password", 401)
 
+#@login_required
+#def user_home(req: HttpRequest):
+
+
+
+
 @CheckRequire
-def logout(req: HttpRequest):
+def user_logout(req: HttpRequest):
     logout(req)
     return HttpResponse("Logged out successfully")
         

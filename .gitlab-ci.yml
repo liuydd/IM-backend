@@ -8,6 +8,8 @@ stages:
 build:
   stage: build
   script:
+    - pip install --upgrade pip
+    - pip install django djangorestframework
     - export BUILD_IMAGE_NAME=$CI_REGISTRY_IMAGE
     - export BUILD_IMAGE_TAG=$CI_COMMIT_REF_SLUG
     - export BUILD_IMAGE_USERNAME=$CI_REGISTRY_USER
@@ -17,7 +19,7 @@ build:
     - master
 
 unit-test:
-  image: python:3.9
+  image: python:3.10
   stage: test
   before_script:
     - pip install -r requirements.txt
