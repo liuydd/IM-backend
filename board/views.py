@@ -1,9 +1,18 @@
 import json
 from django.http import HttpRequest, HttpResponse
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.shortcuts import render, redirect
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.authentication import TokenAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
-from .models import Board, User
+
+from .models import Board, User, Friendship
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
-from utils.utils_require import MAX_CHAR_LENGTH, CheckRequire, require
+from utils.utils_require import MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, PHONE_NUMBER_LENGTH, CheckRequire, require
+from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
 from utils.utils_time import get_timestamp
 from utils.utils_jwt import generate_jwt_token, check_jwt_token
 
@@ -14,36 +23,69 @@ def startup(req: HttpRequest):
 
 
 @CheckRequire
-def login(req: HttpRequest):
-    if req.method != "POST":
-        return BAD_METHOD
-    
-    # Request body example: {"userName": "Ashitemaru", "password": "123456"}
+@api_view(["POST"])
+def register(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
-    
-    username = require(body, "userName", "string", err_msg="Missing or error type of [userName]")
+    username = require(body, "username", "string", err_msg="Missing or error type of [userName]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
+    email = require(body, "email", "string", err_msg="Missing or error type of [email]")
+    phone_number = require(body, "phone_number", "string", err_msg="Missing or error type of [phone_number]")
     
-    # TODO Start: [Student] Finish the login function according to the comments below
-    # If the user does not exist, create a new user and save; while if the user exists, check the password
-    # If new user or checking success, return code 0, "Succeed", with {"token": generate_jwt_token(user_name)}
-    # Else return request_failed with code 2, "Wrong password", http status code 401
+    # 检查用户名和密码格式
+    invalid_username_msg = validate_username(username)
+    if invalid_username_msg:
+        return request_failed(invalid_username_msg)
+    
+    invalid_password_msg = validate_password(password)
+    if invalid_password_msg:
+        return request_failed(invalid_password_msg)
+    
+    # 如提供了email和手机号，则检查格式
+    invalid_email_msg = validate_email(email)
+    if email and invalid_email_msg:
+        return request_failed(invalid_email_msg)
+    
+    invalid_phone_number_msg = validate_phone_number(phone_number)
+    if phone_number and invalid_phone_number_msg:
+        return request_failed(invalid_phone_number_msg)
     
     try:
-        user = User.objects.get(name=username)
-        if user.password != password:
-            return request_failed(2, "Wrong password", 401)
-        else:
-            return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username)})
+        User.objects.get(username=username)
+        return request_failed(2, "Username already exists", 401)
     except:
-        user = User.objects.create(name=username, password=password)
+        User.objects.create(username=username, password=password, email=email, phone_number=phone_number)
         return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username)})
-        
+
+
+@CheckRequire
+@api_view(["POST"])
+def user_login(req: HttpRequest):
+    # Request body example: {"username": "Ashitemaru", "password": "123456"}
+    body = json.loads(req.body.decode("utf-8"))
     
-    # return request_failed(1, "Not implemented", 501)
-    # TODO End: [Student] Finish the login function according to the comments above
+    username = require(body, "username", "string", err_msg="Missing or error type of [username]")
+    password = require(body, "password", "string", err_msg="Missing or error type of [password]")
+    
+    user = authenticate(req, username=username, password=password)
+    if user:
+        login(req, user)
+        access_token = generate_jwt_token(username)
+        return request_success({"code": 0, "info": "Succeed", "token": access_token})
+    else:
+        return request_failed(2, "Invalid username or password", 401)
+
+#@login_required
+#def user_home(req: HttpRequest):
 
 
+
+
+@CheckRequire
+def user_logout(req: HttpRequest):
+    logout(req)
+    return HttpResponse("Logged out successfully")
+        
+        
 def check_for_board_data(body):
     board = require(body, "board", "string", err_msg="Missing or error type of [board]")
     # TODO Start: [Student] add checks for type of boardName and userName
@@ -65,6 +107,15 @@ def check_for_board_data(body):
     # TODO End: [Student] add more checks (you should read API docs carefully)
     
     return board, board_name, user_name
+
+
+@CheckRequire
+@api_view(["DELETE"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def delete_account(req: HttpRequest):
+    req.user.delete()
+    return request_success()
 
 
 @CheckRequire
@@ -123,6 +174,8 @@ def boards(req: HttpRequest):
         
     else:
         return BAD_METHOD
+    
+    
 
 
 @CheckRequire
@@ -179,3 +232,22 @@ def user_board(req: HttpRequest, username: any):
     except:
         return request_failed(1, "User not found", status_code=404)
 # TODO End: [Student] Finish view function for user_board
+
+
+@CheckRequire
+@api_view(["DELETE"])
+@authentication_classes([TokenAuthentication])
+@permission_classes([IsAuthenticated])
+def delete_friend(req: HttpRequest):
+    body = json.loads(req.body)
+    friend_id = require(body, "friend_id")
+    user_id = require(body, "userid")
+    min_id = min(user_id, friend_id)
+    max_id = max(user_id, friend_id)
+    try:
+        user1 = User.objects.get(userid=min_id)
+        user2 = User.objects.get(userid=max_id)
+        friendship = Friendship.objects.get(user1=user1, user2=user2)
+        friendship.delete()
+    except:
+        return request_failed(1, "Target user not in friend list", status_code=404)

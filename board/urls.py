@@ -3,10 +3,12 @@ from . import views
 
 urlpatterns = [
     path('startup', views.startup),
-    path('login', views.login),
+    path('register', views.register),
+    path('login', views.user_login, name='login'),
+    path('logout', views.user_logout),
     path('boards', views.boards),
-    # TODO Start: [Student] add routing paths for `boards/<index>` and `user/<userName>`
+    path('user', views.delete_account),
     path('boards/<index>', views.boards_index),
-    path('user/<username>', views.user_board)
-    # TODO End: [Student] add routing paths for `boards/<index>` and `user/<userName>`
+    path('user/<username>', views.user_board),
+    path('friends/delete', views.delete_friend)
 ]

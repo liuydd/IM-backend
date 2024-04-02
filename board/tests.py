@@ -14,7 +14,7 @@ from utils.utils_jwt import EXPIRE_IN_SECONDS, SALT, b64url_encode
 class BoardTests(TestCase):
     # Initializer
     def setUp(self):
-        holder = User.objects.create(name="Ashitemaru", password="123456")
+        holder = User.objects.create(username="Ashitemaru", password="12345678")
         Board.objects.create(user=holder, board_state="1"*2500, board_name="Ashitemaru's board")
         
     # ! Utility functions
@@ -58,7 +58,7 @@ class BoardTests(TestCase):
         payload = {
             "board": board_state,
             "boardName": board_name,
-            "userName": user_name
+            "username": user_name
         }
         
         payload = {k: v for k, v in payload.items() if v is not None}
@@ -72,27 +72,33 @@ class BoardTests(TestCase):
 
 
     # ! Test section
+    
     # * Tests for login view
+    
+    
+    def test_login_new_user(self):
+        data = {"username": "Ashitu", "password": "12345678"}
+        res = self.client.post('/register', data=data, content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['code'], 0)
+        self.assertTrue(res.json()['token'].count('.') == 2)
+        self.assertTrue(User.objects.filter(username="Ashitu").exists())
+        
     def test_login_existing_user_correct_password(self):
-        data = {"userName": "Ashitemaru", "password": "123456"}
+        # self.assertTrue(User.objects.filter(username="Ashitemaru").exists())
+        data = {"username": "Ashitemaru", "password": "12345678"}
         res = self.client.post('/login', data=data, content_type='application/json')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['code'], 0)
         self.assertTrue(res.json()['token'].count('.') == 2)
 
     def test_login_existing_user_wrong_password(self):
-        data = {"userName": "Ashitemaru", "password": "wrongpassword"}
+        data = {"username": "Ashitemaru", "password": "wrongpassword"}
         res = self.client.post('/login', data=data, content_type='application/json')
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()['code'], 2)
 
-    def test_login_new_user(self):
-        data = {"userName": "NewUser", "password": "123456"}
-        res = self.client.post('/login', data=data, content_type='application/json')
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.json()['code'], 0)
-        self.assertTrue(res.json()['token'].count('.') == 2)
-        self.assertTrue(User.objects.filter(name="NewUser").exists())
+    
     
     
     # * Tests for board
@@ -106,23 +112,23 @@ class BoardTests(TestCase):
     def test_boards_post_new(self):
         board_state = ''.join([random.choice("01") for _ in range(2500)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
         headers = self.generate_header(user_name)
         res = self.post_board(board_state, board_name, user_name, headers)
 
         self.assertEqual(res.status_code, 200)
         self.assertJSONEqual(res.content, {"code": 0, "info": "Succeed", "isCreate": True})
-        self.assertTrue(User.objects.filter(name=user_name).exists())
+        self.assertTrue(User.objects.filter(username=user_name).exists())
         self.assertTrue(Board.objects.filter(board_name=board_name, board_state=board_state).exists())
         
     def test_boards_post_new_twice_samename(self):
         board_state = ''.join([random.choice("01") for _ in range(2500)])
         board_state2 = ''.join([random.choice("01") for _ in range(2500)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
-        headers = self.generate_header("Ashitemaru")
+        headers = self.generate_header("")
         res = self.post_board(board_state, board_name, user_name, headers)
         res = self.post_board(board_state2, board_name, user_name, headers)
         
@@ -135,7 +141,7 @@ class BoardTests(TestCase):
     def test_boards_post_invalid_jwt(self):
         board_state = ''.join([random.choice("01") for _ in range(2500)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
         headers = {"Authorization": "Invalid JWT"}
         res = self.post_board(board_state, board_name, user_name, headers)
@@ -146,7 +152,7 @@ class BoardTests(TestCase):
     def test_boards_post_missing_jwt(self):
         board_state = ''.join([random.choice("01") for _ in range(2500)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
         headers = {}
         res = self.post_board(board_state, board_name, user_name, headers)
@@ -157,7 +163,7 @@ class BoardTests(TestCase):
     def test_boards_post_expired_jwt(self):
         board_state = ''.join([random.choice("01") for _ in range(2500)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
         payload = {
             "iat": int(time.time()) - EXPIRE_IN_SECONDS * 2,
@@ -176,7 +182,7 @@ class BoardTests(TestCase):
     def test_boards_post_invalid_salt(self):
         board_state = ''.join([random.choice("01") for _ in range(2500)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
         headers = self.generate_header(user_name, {}, "AnotherSalt".encode('utf-8'))
         res = self.post_board(board_state, board_name, user_name, headers)
@@ -189,7 +195,7 @@ class BoardTests(TestCase):
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
         user_name = "c7w"
         
-        headers = self.generate_header("Ashitemaru")
+        headers = self.generate_header("")
         res = self.post_board(board_state, board_name, user_name, headers)
         
         self.assertEqual(res.status_code, 403)
@@ -200,9 +206,9 @@ class BoardTests(TestCase):
         random.seed(2)
         board_state = ''.join([random.choice("01") for _ in range(2500)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
-        headers = self.generate_header("Ashitemaru")
+        headers = self.generate_header("")
         res = self.post_board(None, board_name, user_name, headers)
         
         self.assertNotEqual(res.json()['code'], 0)
@@ -216,9 +222,9 @@ class BoardTests(TestCase):
         
         board_state = ''.join([random.choice("01") for _ in range(length)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
-        headers = self.generate_header("Ashitemaru")
+        headers = self.generate_header("")
         res = self.post_board(board_state, board_name, user_name, headers)
         
         self.assertNotEqual(res.json()['code'], 0)
@@ -230,9 +236,9 @@ class BoardTests(TestCase):
     def test_add_board_state_invalid_char(self):
         board_state = ''.join([random.choice("0123") for _ in range(2500)])
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         
-        headers = self.generate_header("Ashitemaru")
+        headers = self.generate_header("")
         res = self.post_board(board_state, board_name, user_name, headers)
         
         self.assertNotEqual(res.json()['code'], 0)
@@ -241,7 +247,7 @@ class BoardTests(TestCase):
         
         board_state = ''.join(random.choice("01中文测试") for _ in range(2500))
         board_name = ''.join([random.choice("qwertyuiop12345678") for _ in range(50)])
-        user_name = "Ashitemaru"
+        user_name = ""
         res = self.post_board(board_state, board_name, user_name, headers)
         
         self.assertNotEqual(res.json()['code'], 0)
@@ -279,7 +285,7 @@ class BoardTests(TestCase):
             self.assertFalse(Board.objects.filter(board_state=board_state).exists())
 
 
-    # + userName key missing
+    # + username key missing
     def test_add_board_username_missing(self):
         random.seed(7)
         board_state = ''.join([random.choice("01") for _ in range(2500)])
@@ -307,7 +313,7 @@ class BoardTests(TestCase):
         index = 1
         res = self.get_board_index(index)
         self.assertEqual(res.json()['code'] , 0)
-        self.assertJSONEqual(res.content, {'code': 0, 'info': 'Succeed', 'board': '1'*2500, 'boardName': "Ashitemaru's board", 'userName': 'Ashitemaru'})
+        self.assertJSONEqual(res.content, {'code': 0, 'info': 'Succeed', 'board': '1'*2500, 'boardName': "Ashitemaru's board", 'username': 'Ashitemaru'})
         self.assertEqual(res.status_code, 200)
     
     # + index not int
@@ -352,7 +358,7 @@ class BoardTests(TestCase):
     
     # + not authorized
     def test_boards_index_delete_not_owner(self):
-        new_user = User.objects.create(name="aaaa", password="aaaa")
+        new_user = User.objects.create(username="aaaa", password="aaaa")
         board = Board.objects.create(board_state="1"*2500, board_name="aaaa's board", user=new_user)
         
         headers = self.generate_header("Ashitemaru")
