@@ -3,7 +3,7 @@ from django.http import HttpRequest, HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
-from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes # login_required
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -26,7 +26,7 @@ def startup(req: HttpRequest):
 @api_view(["POST"])
 def register(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
-    username = require(body, "username", "string", err_msg="Missing or error type of [userName]")
+    username = require(body, "username", "string", err_msg="Missing or error type of [username]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
     email = require(body, "email", "string", err_msg="Missing or error type of [email]")
     phone_number = require(body, "phone_number", "string", err_msg="Missing or error type of [phone_number]")
@@ -51,9 +51,11 @@ def register(req: HttpRequest):
     
     try:
         User.objects.get(username=username)
-        return request_failed(2, "Username already exists", 401)
+        return request_failed(2, "Username already exists", 409)
     except:
         User.objects.create(username=username, password=password, email=email, phone_number=phone_number)
+        #User.objects.create(username=username, password=password)
+        
         return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username)})
 
 
@@ -61,16 +63,17 @@ def register(req: HttpRequest):
 @api_view(["POST"])
 def user_login(req: HttpRequest):
     # Request body example: {"username": "Ashitemaru", "password": "123456"}
+    thisuser = req.user
     body = json.loads(req.body.decode("utf-8"))
-    
     username = require(body, "username", "string", err_msg="Missing or error type of [username]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
     
-    user = authenticate(req, username=username, password=password)
+    user = User.objects.filter(username=username, password=password).first()
+    
     if user:
-        login(req, user)
+        # login(req, thisuser)
         access_token = generate_jwt_token(username)
-        return request_success({"code": 0, "info": "Succeed", "token": access_token})
+        return request_success({"code": 0, "info": "Succeed", "token": access_token, "status_code": 200})
     else:
         return request_failed(2, "Invalid username or password", 401)
 
