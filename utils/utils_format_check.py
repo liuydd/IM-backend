@@ -1,5 +1,5 @@
 import re
-from utils_require import MAX_USERNAME_LENGTH, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
+from utils.utils_require import MAX_USERNAME_LENGTH, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH
 
 def validate_username(username):
     pattern = re.compile(r'[^a-zA-Z0-9_]')
