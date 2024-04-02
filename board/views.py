@@ -3,7 +3,7 @@ from django.http import HttpRequest, HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
-from rest_framework.decorators import api_view, permission_classes, authentication_classes, login_required
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
