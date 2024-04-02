@@ -29,8 +29,8 @@ class User(models.Model):
     
     
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    friends = models.ManyToManyField(User, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    friends = models.ManyToManyField(User, blank=True, related_name="friend")
     groups = models.ManyToManyField('Group', blank=True)
     
     
@@ -43,29 +43,31 @@ class Friendship(models.Model):
     
 
 class PrivateChat(models.Model):
-    members = models.ManyToManyField(User, blank=True)
+    user1 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="private_chat_1")
+    user2 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="private_chat_2")
     messages = models.ManyToManyField('Message', blank=True)
 
-    def serialize(self):
-        return {
-            "members": [ return_field(member.serialize(), ["userid", "username"])
-                         for member in self.members.all() ],
-            "messages": [ return_field(message.serialize(), ["sender", "receiver", "content", "timestamp"])
-                           for message in self.messages.all() ]
-        }
     
 class Message(models.Model):
+    msgid = models.BigAutoField(primary_key=True)
     sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="sent_messages")
     receiver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="received_messages")
-    private_chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="messages")
+    private_chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="private_messages")
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
     
 class Group(models.Model):
+    groupid = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
     members = models.ManyToManyField(UserProfile, blank=True)
     
+
+
+
+
+
+
 
 class Board(models.Model):
     # TODO Start: [Student] Finish the model of Board
