@@ -8,8 +8,6 @@ stages:
 build:
   stage: build
   script:
-    - pip install --upgrade pip
-    - pip install django djangorestframework
     - export BUILD_IMAGE_NAME=$CI_REGISTRY_IMAGE
     - export BUILD_IMAGE_TAG=$CI_COMMIT_REF_SLUG
     - export BUILD_IMAGE_USERNAME=$CI_REGISTRY_USER
@@ -27,6 +25,7 @@ unit-test:
   script:
     - python manage.py makemigrations board
     - python manage.py migrate
+    - chmod +x test.sh
     - ./test.sh
   after_script:
     - SUFFIX=$RANDOM
