@@ -74,11 +74,12 @@ class Group(models.Model):
     members = models.ManyToManyField(UserProfile, blank=True)
     
 
-
-
-
-
-
+class FriendRequest(models.Model):
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_friend_requests")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_friend_requests")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    response_status = models.CharField(max_length=MAX_CHAR_LENGTH, default="pending")
+    
 
 class Board(models.Model):
     # TODO Start: [Student] Finish the model of Board
