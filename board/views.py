@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 
-from .models import Board, User, Friendship
+from .models import Board, User, Friendship, Label
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
 from utils.utils_require import MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, PHONE_NUMBER_LENGTH, CheckRequire, require
 from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
@@ -63,15 +63,13 @@ def register(req: HttpRequest):
 @api_view(["POST"])
 def user_login(req: HttpRequest):
     # Request body example: {"username": "Ashitemaru", "password": "123456"}
-    thisuser = req.user
     body = json.loads(req.body.decode("utf-8"))
     username = require(body, "username", "string", err_msg="Missing or error type of [username]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
     
-    user = User.objects.filter(username=username, password=password).first()
+    user = User.objects.get(username=username, password=password)
     
     if user:
-        # login(req, thisuser)
         access_token = generate_jwt_token(username)
         return request_success({"code": 0, "info": "Succeed", "token": access_token, "status_code": 200})
     else:
@@ -117,7 +115,10 @@ def check_for_board_data(body):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def delete_account(req: HttpRequest):
-    req.user.delete()
+    body = json.loads(req.body.decode("utf-8"))
+    username = require(body, "username", "string", err_msg="Missing or error type of [username]")
+    user = User.objects.get(username=username)
+    user.delete()
     return request_success()
 
 
@@ -242,15 +243,99 @@ def user_board(req: HttpRequest, username: any):
 @authentication_classes([TokenAuthentication])
 @permission_classes([IsAuthenticated])
 def delete_friend(req: HttpRequest):
-    body = json.loads(req.body)
-    friend_id = require(body, "friend_id")
-    user_id = require(body, "userid")
-    min_id = min(user_id, friend_id)
-    max_id = max(user_id, friend_id)
+    body = json.loads(req.body.decode("utf-8"))
+    friend = body["friend"]
+    username = body["username"]
     try:
-        user1 = User.objects.get(userid=min_id)
-        user2 = User.objects.get(userid=max_id)
-        friendship = Friendship.objects.get(user1=user1, user2=user2)
+        user = User.objects.get(username=username)
+        friend = User.objects.get(username=friend)
+        friendship = Friendship.objects.get(user=user, friend=friend)
         friendship.delete()
+        return request_success({"code": 0, "info": "Success"})
     except:
         return request_failed(1, "Target user not in friend list", status_code=404)
+    
+@CheckRequire
+@api_view(["POST"])
+def label_friend(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    
+    user = User.objects.get(username=body["username"])
+    friend = User.objects.get(username=body["friend"])
+    friendship = Friendship.objects.get(user=user, friend=friend)
+    
+    try:
+        friendship.labels.get(labelname=body["label"])
+        return request_failed(1, "Label already exists", status_code=400)
+    except: 
+        new_label = Label.objects.create(labelname=body["label"])
+        friendship.labels.add(new_label)
+        return request_success({"code": 0, "info": "Success"})
+    
+    
+@CheckRequire
+@api_view(["POST"])
+def search_user(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    
+    if body["method"] == "targetname":
+        target = User.objects.filter(username=body["targetname"]).first()
+    elif body["method"] == "email":
+        target = User.objects.filter(email=body["email"]).first()
+    elif body["method"] == "phone_number":
+        target = User.objects.filter(phone_number=body["phone_number"]).first()
+    
+    if not user:
+        return request_failed(1, "User not found", status_code=404)
+    
+    if user == target:
+        return request_failed(1, "You cannot search yourself", status_code=400)
+    
+    return request_success({
+            "code": 0,
+            "info": "Succeed",
+            "target_info": return_field(target.serialize(), ["username", "email", "phone_number"]) 
+        }
+        )
+    
+    
+@CheckRequire
+@api_view(["POST"])
+def list_friend(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    
+    friendships = Friendship.objects.filter(user=user)
+    
+    if not friendships.exists():
+        return request_failed(1, "No friend", status_code=404)
+   
+    return request_success({
+        "code": 0,
+        "info": "Succeed",
+        "friend_list": [friendship.serialize() for friendship in friendships]
+    })
+    
+    
+@CheckRequire
+@api_view(["POST"])
+def modify_profile(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    password = body["password"]
+    
+    if user.password != password:
+        return request_failed(1, "Wrong password", status_code=404)
+    
+    if body["new_password"]:
+        user.password = body["new_password"]
+    if body["new_email"]:
+        user.email = body["new_email"]
+    if body["new_phone_number"]:
+        user.phone_number = body["new_phone_number"]
+    
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
