@@ -18,13 +18,11 @@ class User(models.Model):
         indexes = [models.Index(fields=["username"])]
         
     def serialize(self):
-        boards = Board.objects.filter(user=self)
         return {
-            "userid": self.userid, 
-            "username": self.username, 
-            "created_time": self.created_time,
-            "boards": [ return_field(board.serialize(), ["id", "boardName", "username", "createdAt"])
-                       for board in boards ]
+            # "userid": self.userid, 
+            "username": self.username,
+            "email": self.email,
+            "phone_number": self.phone_number
         }
     
     
@@ -34,12 +32,25 @@ class UserProfile(models.Model):
     groups = models.ManyToManyField('Group', blank=True)
     
     
+class Label(models.Model):
+    labelname = models.CharField(max_length=MAX_CHAR_LENGTH)
+    
+    def __str__(self):
+        return self.labelname
+    
 class Friendship(models.Model):
-    user1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name="friends1")  
-    user2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friends2')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)  
+    friend = models.ForeignKey(User, on_delete=models.CASCADE)
+    labels = models.ManyToManyField(Label, blank=True)
     
     class Meta:
-        unique_together = ('user1', 'user2')  
+        unique_together = ('user', 'friend')  
+    
+    def serialize(self):
+        return {
+            "friend": self.friend,
+            "labels":list(self.labels.values_list('labelname', flat=True))
+        }
     
 
 class PrivateChat(models.Model):
