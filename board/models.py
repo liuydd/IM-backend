@@ -80,6 +80,14 @@ class FriendRequest(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     response_status = models.CharField(max_length=MAX_CHAR_LENGTH, default="pending")
     
+    def serialize(self):
+        return {
+            "id": self.id,
+            "sender": self.sender.username,
+            "receiver": self.receiver.username,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            "response_status": self.response_status
+        }
 
 class Board(models.Model):
     # TODO Start: [Student] Finish the model of Board
