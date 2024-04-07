@@ -34,20 +34,20 @@ def register(req: HttpRequest):
     # 检查用户名和密码格式
     invalid_username_msg = validate_username(username)
     if invalid_username_msg:
-        return request_failed(invalid_username_msg)
+        return request_failed(2, invalid_username_msg)
     
     invalid_password_msg = validate_password(password)
     if invalid_password_msg:
-        return request_failed(invalid_password_msg)
+        return request_failed(2, invalid_password_msg)
     
     # 如提供了email和手机号，则检查格式
     invalid_email_msg = validate_email(email)
     if email and invalid_email_msg:
-        return request_failed(invalid_email_msg)
+        return request_failed(2, invalid_email_msg)
     
     invalid_phone_number_msg = validate_phone_number(phone_number)
     if phone_number and invalid_phone_number_msg:
-        return request_failed(invalid_phone_number_msg)
+        return request_failed(2, invalid_phone_number_msg)
     
     try:
         User.objects.get(username=username)
