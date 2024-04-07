@@ -67,7 +67,7 @@ def user_login(req: HttpRequest):
     username = require(body, "username", "string", err_msg="Missing or error type of [username]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
     
-    user = User.objects.get(username=username, password=password)
+    user = User.objects.filter(username=username, password=password).first()
     
     if user:
         access_token = generate_jwt_token(username)
