@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 
-from .models import Board, User, Friendship, Label
+from .models import Board, User, Friendship, Label, FriendRequest
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
 from utils.utils_require import MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, PHONE_NUMBER_LENGTH, CheckRequire, require
 from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
@@ -339,3 +339,61 @@ def modify_profile(req: HttpRequest):
         "code": 0,
         "info": "Succeed"
     })
+    
+
+@CheckRequire
+@api_view(["POST"])
+def send_friend_request(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    friend = User.objects.get(username=body["friend"])
+    
+    # 双方已是好友
+    if Friendship.objects.filter(user=user, friend=friend).exists():
+        return request_failed(1, "Already friends", status_code=404)
+    
+    # 向自己发送好友请求
+    if user == friend:
+        return request_failed(1, "Cannot send friend request to yourself", status_code=404)
+    
+    # 向同一用户发送过好友请求
+    if FriendRequest.objects.filter(sender=user, receiver=friend, response_status="pending").exists():
+        return request_failed(1, "Already sent friend request", status_code=404)
+    
+    # 对方向你发送过好友请求
+    if FriendRequest.objects.filter(sender=friend, receiver=user, response_status="pending").exists():
+        return request_failed(1, "Please directly respond to the request sent by the target user", status_code=404)
+    
+    
+    FriendRequest.objects.create(sender=user, receiver=friend)
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+    
+    
+@CheckRequire
+@api_view(["POST"])
+def respond_friend_request(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    friend = User.objects.get(username=body["friend"])
+    friend_request = FriendRequest.objects.get(sender=friend, receiver=user)
+    
+    if body["response"] == "Accept":
+        friend_request.response_status = "accepted"
+        friend_request.save()
+        Friendship.objects.create(user=user, friend=friend)
+        Friendship.objects.create(user=friend, friend=user)
+        return request_success({
+            "code": 0,
+            "info": "Succeed"
+        })
+        
+    else:
+        friend_request.response_status = "rejected"
+        friend_request.save()
+        return request_success({
+            "code": 0,
+            "info": "Succeed"
+        })
