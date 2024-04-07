@@ -393,7 +393,26 @@ def respond_friend_request(req: HttpRequest):
     else:
         friend_request.response_status = "rejected"
         friend_request.save()
-        return request_success({
+        return request_success({    
             "code": 0,
             "info": "Succeed"
         })
+        
+        
+@CheckRequire
+@api_view(["POST"])
+def list_friend_request(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    requests_sent = FriendRequest.objects.filter(sender=user)
+    requests_received = FriendRequest.objects.filter(receiver=user)
+    return request_success({
+        "requests_sent": [
+            return_field(request.serialize(), ["sender", "receiver", "timestamp"])
+            for request in requests_sent
+        ],
+        "requests_received": [
+            return_field(request.serialize(), ["sender", "receiver", "timestamp"])
+            for request in requests_received
+        ]
+    })
