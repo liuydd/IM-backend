@@ -39,8 +39,8 @@ class Label(models.Model):
         return self.labelname
     
 class Friendship(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)  
-    friend = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendships_as_user')  
+    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_as_friend')
     labels = models.ManyToManyField(Label, blank=True)
     
     class Meta:
