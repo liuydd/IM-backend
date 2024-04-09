@@ -328,12 +328,12 @@ def modify_profile(req: HttpRequest):
     if user.password != password:
         return request_failed(1, "Wrong password", status_code=404)
     
-    if body["new_password"]:
-        user.password = body["new_password"]
-    if body["new_email"]:
-        user.email = body["new_email"]
-    if body["new_phone_number"]:
-        user.phone_number = body["new_phone_number"]
+    if body["newPassword"]:
+        user.password = body["newPassword"]
+    if body["newEmail"]:
+        user.email = body["newEmail"]
+    if body["newPhoneNumber"]:
+        user.phone_number = body["newPhoneNumber"]
     
     return request_success({
         "code": 0,
