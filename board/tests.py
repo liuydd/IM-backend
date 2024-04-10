@@ -78,7 +78,7 @@ class BoardTests(TestCase):
     
     def test_register_new_user(self):
         # assert(User.objects.filter(username="Ashitu").count() == 0
-        data = {"username": "newuser", "password": "12345678", "email": "", "phone_number": ""}
+        data = {"username": "newuser", "password": "12345678", "email": "", "phoneNumber": ""}
         res = self.client.post('/register', data=data, content_type='application/json')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['code'], 0)
