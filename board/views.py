@@ -29,7 +29,7 @@ def register(req: HttpRequest):
     username = require(body, "username", "string", err_msg="Missing or error type of [username]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
     email = require(body, "email", "string", err_msg="Missing or error type of [email]")
-    phone_number = require(body, "phone_number", "string", err_msg="Missing or error type of [phone_number]")
+    phone_number = require(body, "phoneNumber", "string", err_msg="Missing or error type of [phoneNumber]")
     
     # 检查用户名和密码格式
     invalid_username_msg = validate_username(username)
@@ -71,7 +71,7 @@ def user_login(req: HttpRequest):
     
     if user:
         access_token = generate_jwt_token(username)
-        return request_success({"code": 0, "info": "Succeed", "token": access_token, "status_code": 200})
+        return request_success({"code": 0, "info": "Succeed", "token": access_token, "statusCode": 200})
     else:
         return request_failed(2, "Invalid username or password", 401)
 
@@ -274,28 +274,25 @@ def label_friend(req: HttpRequest):
     
     
 @CheckRequire
-@api_view(["POST"])
+@api_view(["GET"])
 def search_user(req: HttpRequest):
-    body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
     
-    if body["method"] == "targetname":
-        target = User.objects.filter(username=body["targetname"]).first()
-    elif body["method"] == "email":
-        target = User.objects.filter(email=body["email"]).first()
-    elif body["method"] == "phone_number":
-        target = User.objects.filter(phone_number=body["phone_number"]).first()
+    method_used = req.GET["method"]
     
-    if not user:
+    if method_used == "targetname":
+        target = User.objects.filter(username=req.GET["targetname"]).first()
+    elif method_used == "email":
+        target = User.objects.filter(email=req.GET["email"]).first()
+    elif method_used == "phoneNumber":
+        target = User.objects.filter(phone_number=req.GET["phoneNumber"]).first()
+    
+    if not target:
         return request_failed(1, "User not found", status_code=404)
-    
-    if user == target:
-        return request_failed(1, "You cannot search yourself", status_code=400)
     
     return request_success({
             "code": 0,
             "info": "Succeed",
-            "target_info": return_field(target.serialize(), ["username", "email", "phone_number"]) 
+            "targetInfo": return_field(target.serialize(), ["username", "email", "phoneNumber"]) 
         }
         )
     
@@ -314,7 +311,7 @@ def list_friend(req: HttpRequest):
     return request_success({
         "code": 0,
         "info": "Succeed",
-        "friend_list": [friendship.serialize() for friendship in friendships]
+        "friendList": [friendship.serialize() for friendship in friendships]
     })
     
     
@@ -340,6 +337,8 @@ def modify_profile(req: HttpRequest):
         "info": "Succeed"
     })
     
+
+
 
 @CheckRequire
 @api_view(["POST"])
@@ -407,11 +406,11 @@ def list_friend_request(req: HttpRequest):
     requests_sent = FriendRequest.objects.filter(sender=user)
     requests_received = FriendRequest.objects.filter(receiver=user)
     return request_success({
-        "requests_sent": [
+        "requestsSent": [
             return_field(request.serialize(), ["sender", "receiver", "timestamp"])
             for request in requests_sent
         ],
-        "requests_received": [
+        "requestsReceived": [
             return_field(request.serialize(), ["sender", "receiver", "timestamp"])
             for request in requests_received
         ]
