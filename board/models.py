@@ -22,7 +22,7 @@ class User(models.Model):
             # "userid": self.userid, 
             "username": self.username,
             "email": self.email,
-            "phone_number": self.phone_number
+            "phoneNumber": self.phone_number
         }
     
     
@@ -86,7 +86,7 @@ class FriendRequest(models.Model):
             "sender": self.sender.username,
             "receiver": self.receiver.username,
             "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            "response_status": self.response_status
+            "responseStatus": self.response_status
         }
 
 class Board(models.Model):
