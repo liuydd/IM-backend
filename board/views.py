@@ -317,8 +317,6 @@ def list_friend(req: HttpRequest):
     
 @CheckRequire
 @api_view(["POST"])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
 def modify_profile(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
