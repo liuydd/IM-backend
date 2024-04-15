@@ -106,6 +106,8 @@ def delete_friend(req: HttpRequest):
         friend = User.objects.get(username=friend)
         friendship = Friendship.objects.get(user=user, friend=friend)
         friendship.delete()
+        friendship = Friendship.objects.get(user=friend, friend=user)
+        friendship.delete()
         return request_success({"code": 0, "info": "Success"})
     except:
         return request_failed(1, "Target user not in friend list", status_code=404)
