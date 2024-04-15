@@ -193,6 +193,8 @@ def modify_profile(req: HttpRequest):
     if body["newPhoneNumber"]:
         user.phone_number = body["newPhoneNumber"]
     
+    user.save()
+    
     return request_success({
         "code": 0,
         "info": "Succeed"
@@ -268,9 +270,9 @@ def respond_friend_request(req: HttpRequest):
 def list_friend_request(req: HttpRequest):
     # if req.method != "POST":
     #     return BAD_METHOD
-    return request_success({
-        "requestsSent": [{"sender": 1, "receiver": 1, "timestamp": 1, "responseStatus": 1}]
-    })
+    # return request_success({
+    #     "requestsSent": [{"sender": 1, "receiver": 1, "timestamp": 1, "responseStatus": 1}]
+    # })
     
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
