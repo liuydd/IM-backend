@@ -123,13 +123,13 @@ class BoardTests(TestCase):
     
     def test_delete_user(self):
         self.assertTrue(User.objects.filter(username='Inion').exists())
-        res = self.client.delete('/delete_account', {'username': 'Inion'}, format='json')
+        res = self.client.delete('/delete_user', {'username': 'Inion'}, format='json')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['code'], 0)
         self.assertFalse(User.objects.filter(username='Inion').exists())
 
     def test_delete_friend(self):
-        self.assertTrue(Friendship.objects.filter(user=self.friend1.exists()))
+        self.assertTrue(Friendship.objects.filter(user=self.friend1).exists())
         response = self.client.delete('/delete_friend', {'username': 'Hentai'}, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Friendship.objects.filter(user=self.friend1).exists())
