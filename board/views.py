@@ -164,7 +164,7 @@ def list_friend(req: HttpRequest):
     return request_success({
         "code": 0,
         "info": "Succeed",
-        "friendList": [friendship.serialize() for friendship in friendships]
+        "friendList": [return_field(friendship.serialize()) for friendship in friendships]
     })
     
     
