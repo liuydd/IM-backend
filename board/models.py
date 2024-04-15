@@ -48,8 +48,8 @@ class Friendship(models.Model):
     
     def serialize(self):
         return {
-            "friend": self.friend,
-            "labels":list(self.labels.values_list('labelname', flat=True))
+            "friend": self.friend.username,
+            "labels": list(self.labels.values_list('labelname', flat=True))
         }
     
 
@@ -69,9 +69,20 @@ class Message(models.Model):
 
     
 class Group(models.Model):
-    groupid = models.BigAutoField(primary_key=True)
+    id = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
+    monitor = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="monitor_group")
+    managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
     members = models.ManyToManyField(UserProfile, blank=True)
+    announcements = models.ManyToManyField('Announcement', blank=True)
+    
+    def serialize(self):
+        return {
+            "id": self.id,
+            "groupname": self.groupname,
+            "monitor": self.monitor,
+            "members": list(self.members.values_list('user__username', flat=True))
+        }
     
 
 class FriendRequest(models.Model):
@@ -88,4 +99,48 @@ class FriendRequest(models.Model):
             "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
             "responseStatus": self.response_status
         }
+        
+
+class Announcement(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    def serialize(self):
+        return {
+            "content": self.content,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        }
+    
+
+class Board(models.Model):
+    # TODO Start: [Student] Finish the model of Board
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    board_state = models.CharField(max_length=MAX_CHAR_LENGTH)
+    board_name = models.CharField(max_length=MAX_CHAR_LENGTH)
+    created_time = models.FloatField(default=utils_time.get_timestamp)
+    
+    class Meta:
+        indexes = [models.Index(fields=["board_name"])]
+        unique_together = ("user", "board_name")
+    # Meta data
+    # Create index on board_name
+    # Create unique_together on user and board_name
+    
+    # TODO End: [Student] Finish the model of Board
+
+
+    def serialize(self):
+        userName = self.user.name
+        return {
+            "id": self.id,
+            "board": self.board_state, 
+            "boardName": self.board_name,
+            "userName": userName,
+            "createdAt": self.created_time
+        }
+
+    def __str__(self) -> str:
+        return f"{self.user.name}'s board {self.board_name}"
 
