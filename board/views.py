@@ -260,11 +260,11 @@ def list_friend_request(req: HttpRequest):
     requests_received = FriendRequest.objects.filter(receiver=user)
     return request_success({
         "requestsSent": [
-            return_field(request.serialize(), ["sender", "receiver", "timestamp"])
+            return_field(request.serialize(), ["sender", "receiver", "timestamp", "responseStatus"])
             for request in requests_sent
         ],
         "requestsReceived": [
-            return_field(request.serialize(), ["sender", "receiver", "timestamp"])
+            return_field(request.serialize(), ["sender", "receiver", "timestamp", "responseStatus"])
             for request in requests_received
         ]
     })
