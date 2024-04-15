@@ -87,8 +87,8 @@ def user_logout(req: HttpRequest):
 @api_view(["DELETE"])
 def delete_account(req: HttpRequest):
     if req.method != "DELETE":
-        return BAD_METHOD
-    user = User.objects.get(username=req.username)
+        return BAD_METHOD 
+    user = User.objects.get(username=req.body["username"])
     user.delete()
     return request_success({"code": 0, "info": "Succeed"})
 
@@ -170,7 +170,7 @@ def list_friend(req: HttpRequest):
     return request_success({
         "code": 0,
         "info": "Succeed",
-        "friendList": [friendship.serialize() for friendship in friendships]
+        "friendList": [return_field(friendship.serialize(), ["friend", "labels"]) for friendship in friendships]
     })
     
     
@@ -242,7 +242,7 @@ def respond_friend_request(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     friend = User.objects.get(username=body["friend"])
-    friend_request = FriendRequest.objects.get(sender=friend, receiver=user, responseStatus="pending")
+    friend_request = FriendRequest.objects.get(sender=friend, receiver=user, response_status="pending")
     
     if body["response"] == "Accept":
         friend_request.response_status = "accepted"
@@ -266,8 +266,8 @@ def respond_friend_request(req: HttpRequest):
 @CheckRequire
 @api_view(["POST"])
 def list_friend_request(req: HttpRequest):
-    if req.method != "POST":
-        return BAD_METHOD
+    # if req.method != "POST":
+    #     return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     requests_sent = FriendRequest.objects.filter(sender=user)
