@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 
-from .models import User, Friendship, Label, FriendRequest
+from .models import Board, User, Friendship, Label, FriendRequest, Group
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
 from utils.utils_require import MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, PHONE_NUMBER_LENGTH, CheckRequire, require
 from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
@@ -20,6 +20,8 @@ from utils.utils_jwt import generate_jwt_token, check_jwt_token
 @CheckRequire
 @api_view(["POST"])
 def register(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     username = require(body, "username", "string", err_msg="Missing or error type of [username]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
@@ -57,7 +59,8 @@ def register(req: HttpRequest):
 @CheckRequire
 @api_view(["POST"])
 def user_login(req: HttpRequest):
-    # Request body example: {"username": "Ashitemaru", "password": "123456"}
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     username = require(body, "username", "string", err_msg="Missing or error type of [username]")
     password = require(body, "password", "string", err_msg="Missing or error type of [password]")
@@ -82,17 +85,16 @@ def user_logout(req: HttpRequest):
 
 @CheckRequire
 @api_view(["DELETE"])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
 def delete_account(req: HttpRequest):
-    body = json.loads(req.body.decode("utf-8"))
-    username = require(body, "username", "string", err_msg="Missing or error type of [username]")
-    user = User.objects.get(username=username)
+    if req.method != "DELETE":
+        return BAD_METHOD
+    user = User.objects.get(username=req.username)
     user.delete()
     return request_success({"code": 0, "info": "Succeed"})
 
 
 @CheckRequire
+@api_view(["DELETE"])
 def delete_friend(req: HttpRequest):
     if req.method != "DELETE":
         return BAD_METHOD
@@ -111,8 +113,9 @@ def delete_friend(req: HttpRequest):
 @CheckRequire
 @api_view(["POST"])
 def label_friend(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    
     user = User.objects.get(username=body["username"])
     friend = User.objects.get(username=body["friend"])
     friendship = Friendship.objects.get(user=user, friend=friend)
@@ -129,7 +132,8 @@ def label_friend(req: HttpRequest):
 @CheckRequire
 @api_view(["GET"])
 def search_user(req: HttpRequest):
-    
+    if req.method != "GET":
+        return BAD_METHOD
     method_used = req.GET["method"]
     
     if method_used == "targetname":
@@ -153,6 +157,8 @@ def search_user(req: HttpRequest):
 @CheckRequire
 @api_view(["POST"])
 def list_friend(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     
@@ -164,13 +170,15 @@ def list_friend(req: HttpRequest):
     return request_success({
         "code": 0,
         "info": "Succeed",
-        "friendList": [return_field(friendship.serialize(), ["friend", "labels"]) for friendship in friendships]
+        "friendList": [friendship.serialize() for friendship in friendships]
     })
     
     
 @CheckRequire
 @api_view(["POST"])
 def modify_profile(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     password = body["password"]
@@ -196,6 +204,8 @@ def modify_profile(req: HttpRequest):
 @CheckRequire
 @api_view(["POST"])
 def send_friend_request(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     friend = User.objects.get(username=body["friend"])
@@ -227,10 +237,12 @@ def send_friend_request(req: HttpRequest):
 @CheckRequire
 @api_view(["POST"])
 def respond_friend_request(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     friend = User.objects.get(username=body["friend"])
-    friend_request = FriendRequest.objects.get(sender=friend, receiver=user)
+    friend_request = FriendRequest.objects.get(sender=friend, receiver=user, responseStatus="pending")
     
     if body["response"] == "Accept":
         friend_request.response_status = "accepted"
@@ -254,17 +266,72 @@ def respond_friend_request(req: HttpRequest):
 @CheckRequire
 @api_view(["POST"])
 def list_friend_request(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     requests_sent = FriendRequest.objects.filter(sender=user)
     requests_received = FriendRequest.objects.filter(receiver=user)
     return request_success({
         "requestsSent": [
-            return_field(request.serialize(), ["sender", "receiver", "timestamp"])
+            return_field(request.serialize(), ["sender", "receiver", "timestamp", "responseStatus"])
             for request in requests_sent
         ],
         "requestsReceived": [
-            return_field(request.serialize(), ["sender", "receiver", "timestamp"])
+            return_field(request.serialize(), ["sender", "receiver", "timestamp", "responseStatus"])
             for request in requests_received
         ]
+    })
+
+@CheckRequire
+@api_view(["POST"])
+def create_group(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    members = [User.objects.get(username=i) for i in body["members"]]
+    groupname = body["username"] + ", " + ", ".join(body["members"])
+    new_group = Group.objects.create(monitor=user, groupname=groupname)
+    new_group.members.add(*members)
+    return request_success({
+        "code": 0, 
+        "info": "Group created successfully"
+    })
+  
+    
+@CheckRequire
+@api_view(["POST"])
+def transfer_monitor(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    new_monitor = User.objects.get(username=body["newMonitor"])
+    group = Group.objects.get(groupid=body["groupid"])
+    group.monitor = new_monitor
+    group.save()
+    
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+    
+
+def withdraw_group(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    group = Group.objects.get(groupid=body["groupid"])
+    group.members.remove(User.objects.get(username=body["username"]))
+    group.save()
+
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+
+
+def assign_managers(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    group = Group.objects.get(groupid=body["groupid"])
+    group.managers.add(*[User.objects.get(username=i) for i in body["managers"]])
+    group.save()
+
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
     })

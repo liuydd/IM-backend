@@ -3,24 +3,26 @@ from utils.utils_jwt import check_jwt_token
 
 class TokenAuthMiddleware:
     
-    authUrl = ['modify', 'delete_user']
+    auth_urls = [
+        '/modify',
+        '/delete_user',
+
+    ]
+
+    auth_url_prefixes = [
+        '/friend',
+        '/friends',
+    ]
     
     def __init__(self, get_response):
         self.get_response = get_response
         
     def __call__(self, request):
-        if request.path in self.authUrl or request.path.startswith('friends' or 'friend'):
+        if request.path in self.auth_urls or any([request.path.startswith(item) for item in self.auth_url_prefixes]):
             token = request.headers.get('Authorization')
             data = check_jwt_token(token)
-            print(data)
-            try:
-                tokenUser = data['username']
-                requestUser = request.body['username']
-                
-                if tokenUser != requestUser:
-                    return JsonResponse({'status_code': 401, 'info': 'Invalid token'})
-                
-            except:
+            if data is None or 'username' not in data:
                 return JsonResponse({'status_code': 401, 'info': 'Invalid token'})
-            
+            request.username = data['username']
+
         return self.get_response(request)
