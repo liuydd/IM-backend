@@ -230,7 +230,6 @@ def send_friend_request(req: HttpRequest):
     if FriendRequest.objects.filter(sender=friend, receiver=user, response_status="pending").exists():
         return request_failed(1, "Please directly respond to the request sent by the target user", status_code=404)
     
-    
     FriendRequest.objects.create(sender=user, receiver=friend)
     return request_success({
         "code": 0,
@@ -263,6 +262,7 @@ def respond_friend_request(req: HttpRequest):
         friend_request.save()
         return request_success({    
             "code": 0,
+
             "info": "Succeed"
         })
         
@@ -270,11 +270,8 @@ def respond_friend_request(req: HttpRequest):
 @CheckRequire
 @api_view(["POST"])
 def list_friend_request(req: HttpRequest):
-    # if req.method != "POST":
-    #     return BAD_METHOD
-    # return request_success({
-    #     "requestsSent": [{"sender": 1, "receiver": 1, "timestamp": 1, "responseStatus": 1}]
-    # })
+    if req.method != "POST":
+        return BAD_METHOD
     
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
