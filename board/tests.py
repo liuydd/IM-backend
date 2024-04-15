@@ -17,7 +17,9 @@ class BoardTests(TestCase):
         self.friend1 = User.objects.create(username="Hentai", password="1145141919810", email="Sen@pa.i")
         self.friend2 = User.objects.create(username="Baka", password="NonNonDayo", email="AijoKaren99@Shengxiang.com")
         Friendship.objects.create(user=self.user, friend=self.friend1)
+        Friendship.objects.create(user=self.friend1, friend=self.user)
         Friendship.objects.create(user=self.user, friend=self.friend2)
+        Friendship.objects.create(user=self.friend2, friend=self.user)
         
     # ! Utility functions
     def generate_jwt_token(self, username: str, payload: dict, salt: str):
@@ -129,10 +131,12 @@ class BoardTests(TestCase):
         self.assertFalse(User.objects.filter(username='Inion').exists())
 
     def test_delete_friend(self):
-        self.assertTrue(Friendship.objects.filter(user=self.friend1).exists())
+        self.assertTrue(Friendship.objects.filter(user=self.friend1, friend=self.user).exists())
+        self.assertTrue(Friendship.objects.filter(user=self.user, friend=self.friend1).exists())
         response = self.client.delete('/delete_friend', {'username': 'Hentai'}, format='json')
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(Friendship.objects.filter(user=self.friend1).exists())
+        self.assertFalse(Friendship.objects.filter(user=self.friend1, friend=self.user).exists())
+        self.assertFalse(Friendship.objects.filter(user=self.user, friend=self.friend1).exists())
     
     def test_label_friend(self):
         response = self.client.post('/friends/label', {'username': 'Inion'},format='json')
@@ -144,9 +148,10 @@ class BoardTests(TestCase):
         self.assertTrue(Label.objects.filter(labelname='Hentai').exists())
 
     def test_search_user(self):
-        response = self.client.get('/search_target_user', {'username': 'Inion', 'method': 'targetname'}, format='json')
+        response = self.client.get('/search_target_user', params={'username': 'Inion', 'method': 'targetname'})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertEqual(response.json()['info'], 'Succeed')
-        self.assertEqual(response.json()['username'], 'Inion')
-        self.assertEqual(response.json()['email'], 'Oh@My.God')
+        targetInfo = response.json()['targetInfo']
+        self.assertEqual(targetInfo['username'], 'Inion')
+        self.assertEqual(targetInfo['email'], 'Oh@My.God')
