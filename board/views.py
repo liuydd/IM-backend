@@ -88,7 +88,7 @@ def user_logout(req: HttpRequest):
 def delete_account(req: HttpRequest):
     if req.method != "DELETE":
         return BAD_METHOD 
-    user = User.objects.get(username=req.body["username"])
+    user = User.objects.get(username=req.username)
     user.delete()
     return request_success({"code": 0, "info": "Succeed"})
 
