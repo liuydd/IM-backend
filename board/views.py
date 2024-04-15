@@ -93,10 +93,9 @@ def delete_account(req: HttpRequest):
 
 
 @CheckRequire
-@api_view(["DELETE"])
-@authentication_classes([TokenAuthentication])
-@permission_classes([IsAuthenticated])
 def delete_friend(req: HttpRequest):
+    if req.method != "DELETE":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     friend = body["friend"]
     username = body["username"]

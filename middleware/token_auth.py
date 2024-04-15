@@ -9,9 +9,10 @@ class TokenAuthMiddleware:
         self.get_response = get_response
         
     def __call__(self, request):
-        if request.path in self.authUrl or request.path.startswith('friend'):
+        if request.path in self.authUrl or request.path.startswith('friends' or 'friend'):
             token = request.headers.get('Authorization')
             data = check_jwt_token(token)
+            print(data)
             try:
                 tokenUser = data['username']
                 requestUser = request.body['username']
