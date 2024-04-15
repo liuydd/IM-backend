@@ -17,7 +17,9 @@ class BoardTests(TestCase):
         self.friend1 = User.objects.create(username="Hentai", password="1145141919810", email="Sen@pa.i")
         self.friend2 = User.objects.create(username="Baka", password="NonNonDayo", email="AijoKaren99@Shengxiang.com")
         Friendship.objects.create(user=self.user, friend=self.friend1)
+        Friendship.objects.create(user=self.friend1, friend=self.user)
         Friendship.objects.create(user=self.user, friend=self.friend2)
+        Friendship.objects.create(user=self.friend2, friend=self.user)
         
     # Test cases
     def test_register_new_user(self):
