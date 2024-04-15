@@ -71,7 +71,7 @@ class Message(models.Model):
 class Group(models.Model):
     id = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
-    monitor = models.ForeignKey(User, related_name="monitor_group")
+    monitor = models.ForeignKey(User, on_delete=models.SET_NULL, related_name="monitor_group")
     managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
     members = models.ManyToManyField(UserProfile, blank=True)
     announcements = models.ManyToManyField('Announcement', blank=True)
