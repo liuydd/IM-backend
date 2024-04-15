@@ -144,7 +144,7 @@ class BoardTests(TestCase):
         self.assertTrue(Label.objects.filter(labelname='Hentai').exists())
 
     def test_search_user(self):
-        response = self.client.get('/search_target_user', {'username': 'Inion'}, format='json')
+        response = self.client.get('/search_target_user', {'username': 'Inion', 'method': 'targetname'}, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertEqual(response.json()['info'], 'Succeed')
