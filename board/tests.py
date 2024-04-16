@@ -28,7 +28,8 @@ class BoardTests(TestCase):
         self.groupmembers = list(User.objects.filter(username__in=['Inion','Hentai','Baka','Tainaka Ritsu']))
         self.Mygroup = Group.objects.create(groupname='Dream Team',monitor=self.user)
         for member in self.groupmembers:
-            self.Mygroup.members.add(member)         
+            self.Mygroup.members.add(member) 
+       
 
     def test_register_new_user(self):
         data = {"username": "newuser", "password": "12345678", "email": "", "phoneNumber": ""}
@@ -73,37 +74,37 @@ class BoardTests(TestCase):
         self.assertEqual(res.json()['code'], 2)
     
     def test_delete_user(self):
-        self.assertTrue(User.objects.filter(username='Inion').exists())
-        data={'username':'Inion'}
-        res = self.client.delete('/delete_user', data=data, content_type='application/json',HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        self.assertTrue(User.objects.filter(userid = 1).exists())
+        data={'userid':1}
+        res = self.client.delete('/delete_user', data =data , content_type='application/json',HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['code'], 0)
-        self.assertFalse(User.objects.filter(username='Inion').exists())
+        self.assertFalse(User.objects.filter(userid = 1).exists())
 
     def test_delete_friend(self):
         self.assertTrue(Friendship.objects.filter(user=self.user, friend=self.friend1).exists())
-        data={'username':'Inion','friend':'Hentai'}
-        response = self.client.delete('/friends/delete', data=data, content_type='application/json',HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1 ,'friendid': 2 }
+        response = self.client.delete('/friends/delete', data=data, content_type='application/json',HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertFalse(Friendship.objects.filter(user=self.user, friend=self.friend1).exists())
     
     def test_label_friend(self):
-        data={'username':'Inion','friend':'Hentai','label':'bro'}
-        response = self.client.post('/friends/label', data=data, content_type='application/json',HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1 ,'friendid': 2 ,'label':'bro'}
+        response = self.client.post('/friends/label', data=data, content_type='application/json',HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(Label.objects.filter(labelname='bro').exists())
 
     def test_search_user(self):
-        data={'method':'targetname','targetname':'Hentai'}
+        data={'userid': 1 ,'method':'targetname','targetname':'Hentai'}
         response = self.client.get('/search_target_user', data=data, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertEqual(response.json()['targetInfo']['username'],'Hentai')
 
     def test_list_friend(self):
-        data={'username':'Inion'}
-        response = self.client.post('/friends/list', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1}
+        response = self.client.post('/friends/list', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertEqual(response.json()['friendList'][0]['friend'],'Hentai')
@@ -111,59 +112,59 @@ class BoardTests(TestCase):
     
 
     def test_modify_profile(self):
-        data={'username':'Inion','password':'Whatsupbro','newEmail':'Yoshikawa_Yūko@Kitauji.com','newPhoneNumber':'11100011100','newPassword':'20030415'}
-        response = self.client.post('/modify', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'password':'Whatsupbro','newEmail':'Yoshikawa_Yūko@Kitauji.com','newPhoneNumber':'11100011100','newPassword':'20030415'}
+        response = self.client.post('/modify', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(User.objects.filter(username='Inion',email='Yoshikawa_Yūko@Kitauji.com',phone_number='11100011100').exists())
 
     def test_send_friend_request_stranger(self):
-        data={'username':'Inion','friend':'Tainaka Ritsu'}
-        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'friendid': 4}
+        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(FriendRequest.objects.filter(sender=self.user,receiver=self.stranger).exists())
 
     def test_send_friend_request_friend_already_send(self):
-        data={'username':'Inion','friend':'Hentai'}
-        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'friendid': 2}
+        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()['code'], 1)
         self.assertTrue(FriendRequest.objects.filter(sender=self.user,receiver=self.friend1).exists())
 
     def test_send_friend_request_to_self(self):
-        data={'username':'Inion','friend':'Inion'}
-        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'friendid': 1}
+        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()['code'], 1)
         self.assertFalse(FriendRequest.objects.filter(sender=self.user,receiver=self.user).exists())
 
     def test_respond_friend_request_already_receive(self):
-        data={'username':'Inion','friend':'Baka'}
-        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Hentai'))
+        data={'userid': 1,'friendid': 3}
+        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(2))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()['code'], 1)
         self.assertTrue(FriendRequest.objects.filter(sender=self.friend2,receiver=self.user).exists())
     
     def test_respond_friend_request_accept(self):
-        data={'username':'Inion','friend':'Kosaka Honoka','response':'Accept'}
-        response = self.client.post('/friend/respond_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'friendid': 5,'response':'Accept'}
+        response = self.client.post('/friend/respond_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(Friendship.objects.filter(user=self.user,friend=self.sendmefriendrequest).exists())
         self.assertTrue(Friendship.objects.filter(user=self.sendmefriendrequest,friend=self.user).exists())
 
     def test_respond_friend_request_reject(self):
-        data={'username':'Inion','friend':'Kosaka Honoka','response':'rejected'}
-        response = self.client.post('/friend/respond_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'friendid': 5,'response':'rejected'}
+        response = self.client.post('/friend/respond_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertFalse(Friendship.objects.filter(user=self.user,friend=self.sendmefriendrequest).exists())
         self.assertFalse(Friendship.objects.filter(user=self.sendmefriendrequest,friend=self.user).exists())
 
     def test_list_friend_request(self):
-        data={'username':'Inion'}
-        response = self.client.post('/friend/friend_request_list', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1}
+        response = self.client.post('/friend/friend_request_list', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertEqual(response.json()['requestsSent'][0]['sender'],'Inion')
@@ -171,29 +172,29 @@ class BoardTests(TestCase):
         self.assertEqual(response.json()['requestsReceived'][1]['sender'],'Kosaka Honoka')
 
     def test_create_group(self):
-        data={'username':'Inion','members':['Inion','Hentai','Baka','Tainaka Ritsu']}
-        response = self.client.post('/group/create', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'members':[1, 2, 3, 4]}
+        response = self.client.post('/group/create', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(Group.objects.filter(groupname='Inion, Hentai, Baka, Tainaka Ritsu').exists())
 
     def test_transfer_monitor_success(self):
-        data={'username':'Inion','groupid': 1 ,'newMonitor':'Baka'}
-        response = self.client.post('/group/transfer_monitor', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'groupid': 1 ,'newMonitor': 3}
+        response = self.client.post('/group/transfer_monitor', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(Group.objects.filter(groupname='Dream Team',monitor=self.friend2).exists())
 
     def test_Monitor_withdraw_group(self):
-        data={'groupid': 1 , 'username':'Inion'}
-        response = self.client.delete('/group/withdraw_group', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'groupid': 1 , 'userid': 1}
+        response = self.client.delete('/group/withdraw_group', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
-        self.assertNotEqual(Group.objects.filter(groupname='Dream Team').first().monitor.username,'Inion')
+        self.assertNotEqual(Group.objects.filter(groupname='Dream Team').first().monitor.userid, 1)
 
     def test_assign_manager(self):
-        data={'username':'Inion','groupid': 1 ,'newManager':'Baka'}
-        response = self.client.post('/group/assign_manager', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        data={'userid': 1,'groupid': 1 ,'newManager': 3}
+        response = self.client.post('/group/assign_manager', data = data, content_type='application/json',HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(Group.objects.filter(groupname='Dream Team',managers=self.friend2).exists())

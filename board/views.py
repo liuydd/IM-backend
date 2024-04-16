@@ -3,9 +3,7 @@ from django.http import HttpRequest, HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
-from rest_framework.decorators import api_view, permission_classes, authentication_classes # login_required
-from rest_framework.authentication import TokenAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view # login_required
 from rest_framework.response import Response
 
 
@@ -51,7 +49,6 @@ def register(req: HttpRequest):
         return request_failed(2, "Username already exists", 409)
     except:
         User.objects.create(username=username, password=password, email=email, phone_number=phone_number)
-        #User.objects.create(username=username, password=password)
         
         return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username)})
 
@@ -83,7 +80,8 @@ def user_logout(req: HttpRequest):
 def delete_account(req: HttpRequest):
     if req.method != "DELETE":
         return BAD_METHOD 
-    user = User.objects.get(userid=req.userid)
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(userid=body["userid"])
     user.delete()
     return request_success({"code": 0, "info": "Succeed"})
 
@@ -171,7 +169,7 @@ def modify_profile(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["userid"])
+    user = User.objects.get(userid=body["userid"])
     password = body["password"]
     
     if user.password != password:
@@ -256,7 +254,7 @@ def list_friend_request(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
+    user = User.objects.get(userid=body["userid"])
     requests_sent = FriendRequest.objects.filter(sender=user)
     requests_received = FriendRequest.objects.filter(receiver=user)
     return request_success({
@@ -313,17 +311,15 @@ def transfer_monitor(req: HttpRequest):
 
 @CheckRequire
 def withdraw_group(req: HttpRequest):
-    if req.method != "POST":
+    if req.method != "DELETE":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     group = Group.objects.get(groupid=body["groupid"])
     user = User.objects.get(userid=body["userid"])
     group.members.remove(user)
-    group.save()
     if group.monitor == user:
         if group.managers.exists():
             group.monitor = group.managers.first()
-            group.save()
             group.managers.remove(group.monitor)
             group.save()
         else:

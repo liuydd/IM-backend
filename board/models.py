@@ -19,7 +19,7 @@ class User(models.Model):
         
     def serialize(self):
         return {
-            # "userid": self.userid, 
+            "userid": self.userid, 
             "username": self.username,
             "email": self.email,
             "phoneNumber": self.phone_number
