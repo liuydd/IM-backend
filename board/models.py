@@ -7,55 +7,109 @@ from utils.utils_require import MAX_CHAR_LENGTH
 # Create your models here.
 
 class User(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=MAX_CHAR_LENGTH, unique=True)
+    userid = models.BigAutoField(primary_key=True)
+    username = models.CharField(max_length=MAX_CHAR_LENGTH, unique=True)
     password = models.CharField(max_length=MAX_CHAR_LENGTH)
     created_time = models.FloatField(default=utils_time.get_timestamp)
+    email = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
+    phone_number = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
     
     class Meta:
-        indexes = [models.Index(fields=["name"])]
+        indexes = [models.Index(fields=["username"])]
         
     def serialize(self):
-        boards = Board.objects.filter(user=self)
         return {
-            "id": self.id, 
-            "name": self.name, 
-            "createdAt": self.created_time,
-            "boards": [ return_field(board.serialize(), ["id", "boardName", "userName", "createdAt"])
-                       for board in boards ]
+            # "userid": self.userid, 
+            "username": self.username,
+            "email": self.email,
+            "phoneNumber": self.phone_number
         }
     
-    def __str__(self) -> str:
-        return self.name
-
-
-class Board(models.Model):
-    # TODO Start: [Student] Finish the model of Board
-    id = models.BigAutoField(primary_key=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    board_state = models.CharField(max_length=MAX_CHAR_LENGTH)
-    board_name = models.CharField(max_length=MAX_CHAR_LENGTH)
-    created_time = models.FloatField(default=utils_time.get_timestamp)
+    
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    friends = models.ManyToManyField(User, blank=True, related_name="friend")
+    groups = models.ManyToManyField('Group', blank=True)
+    
+    
+class Label(models.Model):
+    labelname = models.CharField(max_length=MAX_CHAR_LENGTH)
+    
+    def __str__(self):
+        return self.labelname
+    
+class Friendship(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendships_as_user')  
+    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_as_friend')
+    labels = models.ManyToManyField(Label, blank=True)
     
     class Meta:
-        indexes = [models.Index(fields=["board_name"])]
-        unique_together = ("user", "board_name")
-    # Meta data
-    # Create index on board_name
-    # Create unique_together on user and board_name
+        unique_together = ('user', 'friend')  
     
-    # TODO End: [Student] Finish the model of Board
-
-
     def serialize(self):
-        userName = self.user.name
+        return {
+            "friend": self.friend.username,
+            "labels": list(self.labels.values_list('labelname', flat=True))
+        }
+    
+
+class PrivateChat(models.Model):
+    user1 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="private_chat_1")
+    user2 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="private_chat_2")
+    messages = models.ManyToManyField('Message', blank=True)
+
+    
+class Message(models.Model):
+    msgid = models.BigAutoField(primary_key=True)
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="sent_messages")
+    receiver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="received_messages")
+    private_chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="private_messages")
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    
+class Group(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
+    monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor_group")
+    managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
+    members = models.ManyToManyField(User, blank=True)
+    announcements = models.ManyToManyField('Announcement', blank=True)
+    
+    def serialize(self):
         return {
             "id": self.id,
-            "board": self.board_state, 
-            "boardName": self.board_name,
-            "userName": userName,
-            "createdAt": self.created_time
+            "groupname": self.groupname,
+            "monitor": self.monitor,
+            "members": list(self.members.values_list('user__username', flat=True))
+        }
+    
+
+class FriendRequest(models.Model):
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_friend_requests")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_friend_requests")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    response_status = models.CharField(max_length=MAX_CHAR_LENGTH, default="pending")
+    
+    def serialize(self):
+        return {
+            "id": self.id,
+            "sender": self.sender.username,
+            "receiver": self.receiver.username,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            "responseStatus": self.response_status
+        }
+        
+
+class Announcement(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    def serialize(self):
+        return {
+            "content": self.content,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         }
 
-    def __str__(self) -> str:
-        return f"{self.user.name}'s board {self.board_name}"
+

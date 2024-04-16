@@ -9,3 +9,5 @@ django-cors-headers
 pytest
 pytest-django
 coverage
+djangorestframework
+pyjwt
