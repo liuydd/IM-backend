@@ -108,7 +108,7 @@ class BoardTests(TestCase):
     
 
     def test_modify_profile(self):
-        data={'username':'Inion','password':'Whatsupbro','newEmail':'Yoshikawa_Yūko@Kitauji.com','newPhoneNumber':'11100011100','newPassword':'20030415'}
+        data={'username':'Inion','password':'Whatsupbro','newEmail':'Yoshikawa_Yūko@Kitauji.com','newPhoneNumber':'11100011100','newPassword':'20030415', 'newUsername': ''}
         response = self.client.post('/modify', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
