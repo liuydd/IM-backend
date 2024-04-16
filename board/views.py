@@ -306,8 +306,7 @@ def transfer_monitor(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     new_monitor = User.objects.get(username=body["newMonitor"])
     group = Group.objects.get(groupid=body["groupid"])
-    if group.monitor != User.objects.get(username=body["username"]):
-        
+    if group.monitor != User.objects.get(username=body["username"]):   
         return request_failed(1, "You are not the monitor of this group", status_code=404)
     if new_monitor not in group.members.all():
         return request_failed(1, "The new monitor is not in the group", status_code=404)
@@ -350,7 +349,8 @@ def withdraw_group(req: HttpRequest):
 def assign_managers(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     group = Group.objects.get(groupid=body["groupid"])
-    group.managers.add(*[User.objects.get(username=i) for i in body["managers"]])
+    group.managers.add(User.objects.get(username="NewManager"))
+    
     group.save()
 
     return request_success({

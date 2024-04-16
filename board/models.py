@@ -78,9 +78,10 @@ class Group(models.Model):
     
     def serialize(self):
         return {
-            "id": self.groupid,
+            "groupid": self.groupid,
             "groupname": self.groupname,
             "monitor": self.monitor,
+            "managers": list(self.managers.values_list('username', flat=True)),
             "members": list(self.members.values_list('user__username', flat=True))
         }
     
@@ -111,5 +112,3 @@ class Announcement(models.Model):
             "content": self.content,
             "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         }
-
-

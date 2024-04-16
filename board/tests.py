@@ -25,8 +25,8 @@ class BoardTests(TestCase):
         FriendRequest.objects.create(sender=self.user,receiver=self.friend1)
         FriendRequest.objects.create(sender=self.friend2,receiver=self.user)
         FriendRequest.objects.create(sender=self.sendmefriendrequest,receiver=self.user)
-        self.groupmembers = User.objects.filter(username=['Inion','Hentai','Baka','Tainaka Ritsu'])
-        self.Mygroup = Group.objects.create(groupname='Dream Team',monitor=self.groupmembers.first())
+        self.groupmembers = list(User.objects.filter(username__in=['Inion','Hentai','Baka','Tainaka Ritsu']))
+        self.Mygroup = Group.objects.create(groupname='Dream Team',monitor=self.user)
         for member in self.groupmembers:
             self.Mygroup.members.add(member)         
 
@@ -180,14 +180,15 @@ class BoardTests(TestCase):
     def test_transfer_monitor_success(self):
         data={'username':'Inion','groupid': 1 ,'newMonitor':'Baka'}
         response = self.client.post('/group/transfer_monitor', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
-        # print(response.json())
-        # self.assertEqual(response.status_code, 200)
-        # self.assertEqual(response.json()['code'], 0)
-        # self.assertTrue(Group.objects.filter(groupname='Dream Team',monitor=self.friend2).exists())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertTrue(Group.objects.filter(groupname='Dream Team',monitor=self.friend2).exists())
 
     def test_Monitor_withdraw_group(self):
         data={'groupid': 1 , 'username':'Inion'}
         response = self.client.delete('/group/withdraw_group', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
-        self.assertFalse(Group.objects.filter(groupname='Dream Team')[0].monitor,'Inion')
+        self.assertNotEqual(Group.objects.filter(groupname='Dream Team').first().monitor.username,'Inion')
+
+    
