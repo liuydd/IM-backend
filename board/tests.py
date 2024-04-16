@@ -172,7 +172,7 @@ class BoardTests(TestCase):
 
     def test_create_group(self):
         data={'username':'Inion','members':['Inion','Hentai','Baka','Tainaka Ritsu']}
-        response = self.client.post('/group/create', data = data, content_type='application/json')
+        response = self.client.post('/group/create', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(Group.objects.filter(groupname='Inion, Hentai, Baka, Tainaka Ritsu').exists())
@@ -190,5 +190,12 @@ class BoardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertNotEqual(Group.objects.filter(groupname='Dream Team').first().monitor.username,'Inion')
+
+    def test_assign_manager(self):
+        data={'username':'Inion','groupid': 1 ,'newManager':'Baka'}
+        response = self.client.post('/group/assign_manager', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertTrue(Group.objects.filter(groupname='Dream Team',managers=self.friend2).exists())
 
     

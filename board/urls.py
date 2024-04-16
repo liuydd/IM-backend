@@ -17,4 +17,5 @@ urlpatterns = [
     path('group/create', views.create_group),
     path('group/transfer_monitor', views.transfer_monitor),
     path('group/withdraw_group', views.withdraw_group),
+    path('group/assign_manager', views.assign_manager),
 ]

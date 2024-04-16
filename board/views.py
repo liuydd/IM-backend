@@ -345,11 +345,19 @@ def withdraw_group(req: HttpRequest):
         "info": "Succeed"
     })
 
-
-def assign_managers(req: HttpRequest):
+def assign_manager(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     group = Group.objects.get(groupid=body["groupid"])
-    group.managers.add(User.objects.get(username="NewManager"))
+    user = User.objects.get(username=body["username"])
+    new_manager = User.objects.get(username=body["newManager"])
+    if group.monitor != user:
+        return request_failed(1, "You are not the monitor of this group, so you cannot assign managers")
+    if group.monitor == new_manager:
+        return request_failed(1, "The target user is the monitor of the group, so you cannot assign him/her as a manager")
+    if group.managers.contains(new_manager):
+        return request_failed(1, "The target user is already one of the managers")
+
+    group.managers.add(new_manager)
     
     group.save()
 
@@ -371,31 +379,6 @@ def list_group(req: HttpRequest):
         "manageGroup": manage_group,
         "memberOfGroup": member_of_group
     })
-
-def assign_manager(req: HttpRequest):
-    body = json.loads(req.body.decode("utf-8"))
-    group = Group.objects.get(groupid=body["groupid"])
-    user = User.objects.get(username=body["username"])
-    target = User.objects.get(username=body["target"])
-    
-    if group.monitor != user:
-        return request_failed(1, "You are not the monitor of this group")
-    
-    if target == user:
-        return request_failed(1, "You are already the monitor of this group")
-    
-    if group.managers.contains(target):
-        return request_failed(1, "This user is already a manager")
-    
-    group.managers.add(target)
-    group.members.remove(target)
-    group.save()
-
-    return request_success({
-        "code": 0,
-        "info": "Succeed"
-    })
-
 
 def remove_member(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))

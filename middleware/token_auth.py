@@ -12,6 +12,7 @@ class TokenAuthMiddleware:
     auth_url_prefixes = [
         '/friend',
         '/friends',
+        '/group',
     ]
     
     def __init__(self, get_response):
