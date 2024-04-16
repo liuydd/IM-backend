@@ -128,6 +128,13 @@ class BoardTests(TestCase):
         self.assertEqual(response.json()['code'], 1)
         self.assertTrue(FriendRequest.objects.filter(sender=self.user,receiver=self.friend1).exists())
 
+    def test_send_friend_request_to_self(self):
+        data={'username':'Inion','friend':'Inion'}
+        response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Inion'))
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()['code'], 1)
+        self.assertFalse(FriendRequest.objects.filter(sender=self.user,receiver=self.user).exists())
+
     def test_respond_friend_request_already_receive(self):
         data={'username':'Inion','friend':'Baka'}
         response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token('Hentai'))
@@ -160,3 +167,9 @@ class BoardTests(TestCase):
         self.assertEqual(response.json()['requestsReceived'][0]['sender'],'Baka')
         self.assertEqual(response.json()['requestsReceived'][1]['sender'],'Kosaka Honoka')
 
+    def test_create_group(self):
+        data={'username':'Inion','members':['Hentai','Baka','Tainaka Ritsu']}
+        response = self.client.post('/group/create', data = data, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertTrue(Group.objects.filter(groupname='Inion, Hentai, Baka, Tainaka Ritsu').exists())

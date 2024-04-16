@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 
-from .models import Board, User, Friendship, Label, FriendRequest, Group
+from .models import User, Friendship, Label, FriendRequest, Group
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
 from utils.utils_require import MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, PHONE_NUMBER_LENGTH, CheckRequire, require
 from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
@@ -72,10 +72,6 @@ def user_login(req: HttpRequest):
         return request_success({"code": 0, "info": "Succeed", "token": access_token, "statusCode": 200})
     else:
         return request_failed(2, "Invalid username or password", 401)
-
-#@login_required
-#def user_home(req: HttpRequest):
-
 
 @CheckRequire
 def user_logout(req: HttpRequest):
@@ -296,7 +292,9 @@ def create_group(req: HttpRequest):
     members = [User.objects.get(username=i) for i in body["members"]]
     groupname = body["username"] + ", " + ", ".join(body["members"])
     new_group = Group.objects.create(monitor=user, groupname=groupname)
-    new_group.members.add(*members)
+    print(groupname)
+    for i in members:
+        new_group.members.add(i)
     return request_success({
         "code": 0, 
         "info": "Group created successfully"
