@@ -68,7 +68,7 @@ def user_login(req: HttpRequest):
     user = User.objects.filter(username=username, password=password).first()
     
     if user:
-        access_token = generate_jwt_token(username)
+        access_token = generate_jwt_token(user.userid)
         return request_success({"code": 0, "info": "Succeed", "token": access_token, "statusCode": 200})
     else:
         return request_failed(2, "Invalid username or password", 401)
@@ -80,26 +80,24 @@ def user_logout(req: HttpRequest):
 
 
 @CheckRequire
-@api_view(["DELETE"])
 def delete_account(req: HttpRequest):
     if req.method != "DELETE":
         return BAD_METHOD 
-    user = User.objects.get(username=req.username)
+    user = User.objects.get(userid=req.userid)
     user.delete()
     return request_success({"code": 0, "info": "Succeed"})
 
 
 @CheckRequire
-@api_view(["DELETE"])
 def delete_friend(req: HttpRequest):
     if req.method != "DELETE":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    friend = body["friend"]
-    username = body["username"]
+    friendid = body["friendid"]
+    userid = body["userid"]
     try:
-        user = User.objects.get(username=username)
-        friend = User.objects.get(username=friend)
+        user = User.objects.get(userid=userid)
+        friend = User.objects.get(userid=friendid)
         friendship = Friendship.objects.get(user=user, friend=friend)
         friendship.delete()
         friendship = Friendship.objects.get(user=friend, friend=user)
@@ -109,13 +107,12 @@ def delete_friend(req: HttpRequest):
         return request_failed(1, "Target user not in friend list", status_code=404)
     
 @CheckRequire
-@api_view(["POST"])
 def label_friend(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
-    friend = User.objects.get(username=body["friend"])
+    user = User.objects.get(userid=body["userid"])
+    friend = User.objects.get(userid=body["friendid"])
     friendship = Friendship.objects.get(user=user, friend=friend)
     
     try:
@@ -128,7 +125,6 @@ def label_friend(req: HttpRequest):
     
     
 @CheckRequire
-@api_view(["GET"])
 def search_user(req: HttpRequest):
     if req.method != "GET":
         return BAD_METHOD
@@ -147,18 +143,16 @@ def search_user(req: HttpRequest):
     return request_success({
             "code": 0,
             "info": "Succeed",
-            "targetInfo": return_field(target.serialize(), ["username", "email", "phoneNumber"]) 
-        }
-        )
+            "targetInfo": return_field(target.serialize(), ["userid", "username", "email", "phoneNumber"]) 
+        })
     
     
 @CheckRequire
-@api_view(["POST"])
 def list_friend(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
+    user = User.objects.get(userid=body["userid"])
     
     friendships = Friendship.objects.filter(user=user)
     
@@ -173,12 +167,11 @@ def list_friend(req: HttpRequest):
     
     
 @CheckRequire
-@api_view(["POST"])
 def modify_profile(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
+    user = User.objects.get(username=body["userid"])
     password = body["password"]
     
     if user.password != password:
@@ -199,16 +192,13 @@ def modify_profile(req: HttpRequest):
     })
     
 
-
-
 @CheckRequire
-@api_view(["POST"])
 def send_friend_request(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
-    friend = User.objects.get(username=body["friend"])
+    user = User.objects.get(userid=body["userid"])
+    friend = User.objects.get(userid=body["friendid"])
     
     # 双方已是好友
     if Friendship.objects.filter(user=user, friend=friend).exists():
@@ -234,13 +224,12 @@ def send_friend_request(req: HttpRequest):
     
     
 @CheckRequire
-@api_view(["POST"])
 def respond_friend_request(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
-    friend = User.objects.get(username=body["friend"])
+    user = User.objects.get(userid=body["userid"])
+    friend = User.objects.get(userid=body["friendid"])
     friend_request = FriendRequest.objects.get(sender=friend, receiver=user, response_status="pending")
     
     if body["response"] == "Accept":
@@ -258,17 +247,14 @@ def respond_friend_request(req: HttpRequest):
         friend_request.save()
         return request_success({    
             "code": 0,
-
             "info": "Succeed"
         })
         
         
 @CheckRequire
-@api_view(["POST"])
 def list_friend_request(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
-    
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     requests_sent = FriendRequest.objects.filter(sender=user)
@@ -285,12 +271,13 @@ def list_friend_request(req: HttpRequest):
     })
 
 @CheckRequire
-@api_view(["POST"])
 def create_group(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
-    members = [User.objects.get(username=i) for i in body["members"]]
-    groupname = ", ".join(body["members"])
+    user = User.objects.get(userid=body["userid"])
+    members = [User.objects.get(userid=i) for i in body["members"]]
+    groupname = ", ".join([member.username for member in members])
     new_group = Group.objects.create(monitor=user, groupname=groupname)
     for i in members:
         new_group.members.add(i)
@@ -301,55 +288,68 @@ def create_group(req: HttpRequest):
   
     
 @CheckRequire
-@api_view(["POST"])
 def transfer_monitor(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    new_monitor = User.objects.get(username=body["newMonitor"])
+    user = User.objects.get(userid=body["userid"])
+    new_monitor = User.objects.get(userid=body["newMonitor"])
     group = Group.objects.get(groupid=body["groupid"])
-    if group.monitor != User.objects.get(username=body["username"]):   
+    if group.monitor != user:   
         return request_failed(1, "You are not the monitor of this group", status_code=404)
+    if user == new_monitor:
+        return request_failed(1, "The new monitor is the same as the current monitor", status_code=404)
     if new_monitor not in group.members.all():
         return request_failed(1, "The new monitor is not in the group", status_code=404)
-    else:
-        group.monitor = new_monitor
+    if new_monitor in group.managers.all():
+        group.managers.remove(new_monitor)
+    group.monitor = new_monitor
     group.save()
-    
     return request_success({
         "code": 0,
         "info": "Succeed"
     })
     
 
+@CheckRequire
 def withdraw_group(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     group = Group.objects.get(groupid=body["groupid"])
-    if group.monitor == User.objects.get(username=body["username"]):
-        group.members.remove(group.monitor)
+    user = User.objects.get(userid=body["userid"])
+    group.members.remove(user)
+    group.save()
+    if group.monitor == user:
         if group.managers.exists():
             group.monitor = group.managers.first()
+            group.save()
             group.managers.remove(group.monitor)
+            group.save()
         else:
             if group.members.exists():
                 group.monitor = group.members.first()
+                group.save()
             else:
                 group.delete()
-    elif group.managers.filter(username=body["username"]).exists():
-        group.managers.remove(User.objects.get(username=body["username"]))
-        group.members.remove(User.objects.get(username=body["username"]))
-    else:
-        group.members.remove(User.objects.get(username=body["username"]))
+    elif group.managers.contains(user):
+        group.managers.remove(user)
     group.save()
 
     return request_success({
         "code": 0,
         "info": "Succeed"
     })
+    
 
+@CheckRequire
 def assign_manager(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     group = Group.objects.get(groupid=body["groupid"])
-    user = User.objects.get(username=body["username"])
-    new_manager = User.objects.get(username=body["newManager"])
+    user = User.objects.get(userid=body["userid"])
+    new_manager = User.objects.get(userid=body["newManager"])
     if group.monitor != user:
         return request_failed(1, "You are not the monitor of this group, so you cannot assign managers")
     if group.monitor == new_manager:
@@ -358,7 +358,6 @@ def assign_manager(req: HttpRequest):
         return request_failed(1, "The target user is already one of the managers")
 
     group.managers.add(new_manager)
-    
     group.save()
 
     return request_success({
@@ -366,9 +365,13 @@ def assign_manager(req: HttpRequest):
         "info": "Succeed"
     })
 
+
+@CheckRequire
 def list_group(req: HttpRequest):
+    if req.method != "GET":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
+    user = User.objects.get(userid=body["userid"])
     monitor_group = [group.serialize() for group in user.monitor_group.all()]
     manage_group = [group.serialize() for group in user.manage_group.all()]
     member_of_group = [group.serialize() for group in user.member_of_group.all()]
@@ -380,11 +383,15 @@ def list_group(req: HttpRequest):
         "memberOfGroup": member_of_group
     })
 
+
+@CheckRequire
 def remove_member(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(username=body["username"])
+    user = User.objects.get(userid=body["userid"])
     group = Group.objects.get(groupid=body["groupid"])
-    target = User.objects.get(username=body["target"])
+    target = User.objects.get(userid=body["target"])
     
     if user == target:
         return request_failed(1, "You cannot remove yourself")
@@ -392,8 +399,7 @@ def remove_member(req: HttpRequest):
     if group.monitor == user:
         if group.managers.contains(target):
             group.managers.remove(target)
-        else:
-            group.members.remove(target)
+        group.members.remove(target)
         group.save()
     
     elif group.managers.contains(user):
@@ -401,8 +407,12 @@ def remove_member(req: HttpRequest):
             return request_failed(1, "You cannot remove a monitor or a manager")
         else:
             group.members.remove(target)
-        group.save()
+            group.save()
     
     else:
         return request_failed(1, "You are not allowed to kick anyone out of group")
     
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
