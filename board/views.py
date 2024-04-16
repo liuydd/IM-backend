@@ -187,9 +187,20 @@ def modify_profile(req: HttpRequest):
     if body["newPassword"]:
         user.password = body["newPassword"]
     if body["newEmail"]:
-        user.email = body["newEmail"]
+        email = body["newEmail"]
+        if User.objects.filter(email=email).exists():
+            return request_failed(1, "Email already used", status_code=400)
+        user.email = email
     if body["newPhoneNumber"]:
-        user.phone_number = body["newPhoneNumber"]
+        number = body["newPhoneNumber"]
+        if User.objects.filter(phone_number=number).exists():
+            return request_failed(1, "Phone number already used", status_code=400)
+        user.phone_number = number
+    if body["newUsername"]:
+        name = body["newUsername"]
+        if User.objects.filter(username=name).exists():
+            return request_failed(1, "Username already used", status_code=400)
+        user.username = name
     
     user.save()
     
