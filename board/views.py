@@ -290,9 +290,8 @@ def create_group(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(username=body["username"])
     members = [User.objects.get(username=i) for i in body["members"]]
-    groupname = body["username"] + ", " + ", ".join(body["members"])
+    groupname = ", ".join(body["members"])
     new_group = Group.objects.create(monitor=user, groupname=groupname)
-    print(groupname)
     for i in members:
         new_group.members.add(i)
     return request_success({
@@ -307,7 +306,13 @@ def transfer_monitor(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     new_monitor = User.objects.get(username=body["newMonitor"])
     group = Group.objects.get(groupid=body["groupid"])
-    group.monitor = new_monitor
+    if group.monitor != User.objects.get(username=body["username"]):
+        
+        return request_failed(1, "You are not the monitor of this group", status_code=404)
+    if new_monitor not in group.members.all():
+        return request_failed(1, "The new monitor is not in the group", status_code=404)
+    else:
+        group.monitor = new_monitor
     group.save()
     
     return request_success({
@@ -319,7 +324,21 @@ def transfer_monitor(req: HttpRequest):
 def withdraw_group(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     group = Group.objects.get(groupid=body["groupid"])
-    group.members.remove(User.objects.get(username=body["username"]))
+    if group.monitor == User.objects.get(username=body["username"]):
+        group.members.remove(group.monitor)
+        if group.managers.exists():
+            group.monitor = group.managers.first()
+            group.managers.remove(group.monitor)
+        else:
+            if group.members.exists():
+                group.monitor = group.members.first()
+            else:
+                group.delete()
+    elif group.managers.filter(username=body["username"]).exists():
+        group.managers.remove(User.objects.get(username=body["username"]))
+        group.members.remove(User.objects.get(username=body["username"]))
+    else:
+        group.members.remove(User.objects.get(username=body["username"]))
     group.save()
 
     return request_success({
@@ -338,3 +357,69 @@ def assign_managers(req: HttpRequest):
         "code": 0,
         "info": "Succeed"
     })
+
+def list_group(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    monitor_group = [group.serialize() for group in user.monitor_group.all()]
+    manage_group = [group.serialize() for group in user.manage_group.all()]
+    member_of_group = [group.serialize() for group in user.member_of_group.all()]
+    return request_success({
+        "code": 0,
+        "info": "Group list retrieved successfully",
+        "monitorGroup": monitor_group,
+        "manageGroup": manage_group,
+        "memberOfGroup": member_of_group
+    })
+
+def assign_manager(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    group = Group.objects.get(groupid=body["groupid"])
+    user = User.objects.get(username=body["username"])
+    target = User.objects.get(username=body["target"])
+    
+    if group.monitor != user:
+        return request_failed(1, "You are not the monitor of this group")
+    
+    if target == user:
+        return request_failed(1, "You are already the monitor of this group")
+    
+    if group.managers.contains(target):
+        return request_failed(1, "This user is already a manager")
+    
+    group.managers.add(target)
+    group.members.remove(target)
+    group.save()
+
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+
+
+def remove_member(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(username=body["username"])
+    group = Group.objects.get(groupid=body["groupid"])
+    target = User.objects.get(username=body["target"])
+    
+    if user == target:
+        return request_failed(1, "You cannot remove yourself")
+    
+    if group.monitor == user:
+        if group.managers.contains(target):
+            group.managers.remove(target)
+        else:
+            group.members.remove(target)
+        group.save()
+    
+    elif group.managers.contains(user):
+        if group.monitor == target or group.managers.contains(target):
+            return request_failed(1, "You cannot remove a monitor or a manager")
+        else:
+            group.members.remove(target)
+        group.save()
+    
+    else:
+        return request_failed(1, "You are not allowed to kick anyone out of group")
+    

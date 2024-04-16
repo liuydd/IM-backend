@@ -15,4 +15,6 @@ urlpatterns = [
     path('search_target_user', views.search_user),   
     path('modify', views.modify_profile),
     path('group/create', views.create_group),
+    path('group/transfer_monitor', views.transfer_monitor),
+    path('group/withdraw_group', views.withdraw_group),
 ]

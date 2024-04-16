@@ -69,7 +69,7 @@ class Message(models.Model):
 
     
 class Group(models.Model):
-    id = models.BigAutoField(primary_key=True)
+    groupid = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
     monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor_group")
     managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
@@ -78,7 +78,7 @@ class Group(models.Model):
     
     def serialize(self):
         return {
-            "id": self.id,
+            "id": self.groupid,
             "groupname": self.groupname,
             "monitor": self.monitor,
             "members": list(self.members.values_list('user__username', flat=True))
