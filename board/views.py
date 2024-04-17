@@ -277,8 +277,10 @@ def create_group(req: HttpRequest):
     members = [User.objects.get(userid=i) for i in body["members"]]
     groupname = ", ".join([member.username for member in members])
     new_group = Group.objects.create(monitor=user, groupname=groupname)
+    user.monitor_group.add(new_group)
     for i in members:
         new_group.members.add(i)
+        i.member_of_group.add(new_group)
     return request_success({
         "code": 0, 
         "info": "Group created successfully"
@@ -301,7 +303,9 @@ def transfer_monitor(req: HttpRequest):
         return request_failed(1, "The new monitor is not in the group", status_code=404)
     if new_monitor in group.managers.all():
         group.managers.remove(new_monitor)
+        new_monitor.manage_group.remove(group)
     group.monitor = new_monitor
+    new_monitor.monitor_group.add(group)
     group.save()
     return request_success({
         "code": 0,
@@ -366,8 +370,7 @@ def assign_manager(req: HttpRequest):
 def list_group(req: HttpRequest):
     if req.method != "GET":
         return BAD_METHOD
-    body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(userid=body["userid"])
+    user = User.objects.get(userid=req.GET["userid"])
     monitor_group = [group.serialize() for group in user.monitor_group.all()]
     manage_group = [group.serialize() for group in user.manage_group.all()]
     member_of_group = [group.serialize() for group in user.member_of_group.all()]
@@ -387,7 +390,7 @@ def remove_member(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
     group = Group.objects.get(groupid=body["groupid"])
-    target = User.objects.get(userid=body["target"])
+    target = User.objects.get(userid=body["targetid"])
     
     if user == target:
         return request_failed(1, "You cannot remove yourself")

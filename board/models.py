@@ -13,6 +13,10 @@ class User(models.Model):
     created_time = models.FloatField(default=utils_time.get_timestamp)
     email = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
     phone_number = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
+
+    monitor_group = models.ManyToManyField('Group', blank=True, related_name="monitor_group")
+    manage_group = models.ManyToManyField('Group', blank=True, related_name="manage_group")
+    member_of_group = models.ManyToManyField('Group', blank=True, related_name="member_group")
     
     class Meta:
         indexes = [models.Index(fields=["username"])]
@@ -72,17 +76,17 @@ class Group(models.Model):
     groupid = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
     monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor_group")
-    managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
-    members = models.ManyToManyField(User, blank=True)
+    managers = models.ManyToManyField(User, blank=True, related_name="managers")
+    members = models.ManyToManyField(User, blank=True,related_name="members")
     announcements = models.ManyToManyField('Announcement', blank=True)
     
     def serialize(self):
         return {
             "groupid": self.groupid,
             "groupname": self.groupname,
-            "monitor": self.monitor,
+            "monitor": self.monitor.username,
             "managers": list(self.managers.values_list('username', flat=True)),
-            "members": list(self.members.values_list('user__username', flat=True))
+            "members": list(self.members.values_list('username', flat=True))
         }
     
 
