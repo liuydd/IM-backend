@@ -306,6 +306,7 @@ def transfer_monitor(req: HttpRequest):
         new_monitor.manage_group.remove(group)
     group.monitor = new_monitor
     new_monitor.monitor_group.add(group)
+    user.monitor_group.remove(group)
     group.save()
     return request_success({
         "code": 0,
