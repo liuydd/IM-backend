@@ -24,6 +24,6 @@ class TokenAuthMiddleware:
             data = check_jwt_token(token)
             if data is None or 'userid' not in data:
                 return JsonResponse({'status_code': 401, 'info': 'Invalid token'})
-            request.username = data['userid']
+            request.userid = data['userid']
 
         return self.get_response(request)
