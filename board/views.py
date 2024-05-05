@@ -50,7 +50,7 @@ def register(req: HttpRequest):
     except:
         user = User.objects.create(username=username, password=password, email=email, phone_number=phone_number)
         
-        return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(user.userid)})
+        return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(user.userid), "userid": user.userid})
 
 
 @CheckRequire
