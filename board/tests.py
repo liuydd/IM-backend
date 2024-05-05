@@ -142,42 +142,42 @@ class BoardTests(TestCase):
     
 
     def test_modify_profile(self):
-        data={'userid': 1,'password':'Whatsupbro','newEmail':'Yoshikawa_Yūko@Kitauji.com','newPhoneNumber':'11100011100','newPassword':'20030415'}
+        data={'userid': 1,'password':'Whatsupbro','newUsername':'','newEmail':'Yoshikawa_Yūko@Kitauji.com','newPhoneNumber':'11100011100','newPassword':'20030415'}
         response = self.client.post('/modify', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(User.objects.filter(username='Inion',email='Yoshikawa_Yūko@Kitauji.com',phone_number='11100011100').exists())
 
     def test_send_friend_request_stranger(self):
-        data={'userid': 1,'friendid': 4}
+        data={'userid': 1,'friend': 'Tainaka Ritsu'}
         response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(FriendRequest.objects.filter(sender=self.user,receiver=self.stranger).exists())
 
     def test_send_friend_request_friend_already_send(self):
-        data={'userid': 1,'friendid': 2}
+        data={'userid': 1,'friend': 'Hentai'}
         response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()['code'], 1)
         self.assertTrue(FriendRequest.objects.filter(sender=self.user,receiver=self.friend1).exists())
 
     def test_send_friend_request_to_self(self):
-        data={'userid': 1,'friendid': 1}
+        data={'userid': 1,'friend': 'Inion'}
         response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()['code'], 1)
         self.assertFalse(FriendRequest.objects.filter(sender=self.user,receiver=self.user).exists())
 
     def test_respond_friend_request_already_receive(self):
-        data={'userid': 1,'friendid': 3}
+        data={'userid': 1,'friend': 'Baka'}
         response = self.client.post('/friend/send_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(2))
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()['code'], 1)
         self.assertTrue(FriendRequest.objects.filter(sender=self.friend2,receiver=self.user).exists())
     
     def test_respond_friend_request_accept(self):
-        data={'userid': 1,'friendid': 5,'response':'Accept'}
+        data={'userid': 1,'friend': 'Kosaka Honoka','response':'Accept'}
         response = self.client.post('/friend/respond_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
@@ -185,7 +185,7 @@ class BoardTests(TestCase):
         self.assertTrue(Friendship.objects.filter(user=self.sendmefriendrequest,friend=self.user).exists())
 
     def test_respond_friend_request_reject(self):
-        data={'userid': 1,'friendid': 5,'response':'rejected'}
+        data={'userid': 1,'friend': 'Kosaka Honoka','response':'rejected'}
         response = self.client.post('/friend/respond_friend_request', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)

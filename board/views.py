@@ -175,6 +175,8 @@ def modify_profile(req: HttpRequest):
     if user.password != password:
         return request_failed(1, "Wrong password", status_code=404)
     
+    if body["newUsername"]:
+        user.username = body["newUsername"]
     if body["newPassword"]:
         user.password = body["newPassword"]
     if body["newEmail"]:
@@ -196,7 +198,7 @@ def send_friend_request(req: HttpRequest):
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
-    friend = User.objects.get(userid=body["friendid"])
+    friend = User.objects.get(username=body["friend"])
     
     # 双方已是好友
     if Friendship.objects.filter(user=user, friend=friend).exists():
@@ -227,7 +229,7 @@ def respond_friend_request(req: HttpRequest):
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
-    friend = User.objects.get(userid=body["friendid"])
+    friend = User.objects.get(username=body["friend"])
     friend_request = FriendRequest.objects.get(sender=friend, receiver=user, response_status="pending")
     
     if body["response"] == "Accept":
