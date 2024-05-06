@@ -309,6 +309,7 @@ def transfer_monitor(req: HttpRequest):
     group.monitor = new_monitor
     new_monitor.monitor_group.add(group)
     user.monitor_group.remove(group)
+    user.member_of_group.add(group)
     group.save()
     return request_success({
         "code": 0,
@@ -325,6 +326,7 @@ def withdraw_group(req: HttpRequest):
     user = User.objects.get(userid=body["userid"])
     group.members.remove(user)
     if group.monitor == user:
+        user.monitor_group.remove(group)
         if group.managers.exists():
             group.monitor = group.managers.first()
             group.managers.remove(group.monitor)
@@ -337,6 +339,9 @@ def withdraw_group(req: HttpRequest):
                 group.delete()
     elif group.managers.contains(user):
         group.managers.remove(user)
+        user.manage_group.remove(group)
+    elif group.members.contains(user):
+        user.member_of_group.remove(group) 
     group.save()
 
     return request_success({
@@ -361,6 +366,7 @@ def assign_manager(req: HttpRequest):
         return request_failed(1, "The target user is already one of the managers")
 
     group.managers.add(new_manager)
+    new_manager.manage_group.add(group)
     group.save()
 
     return request_success({
