@@ -340,7 +340,7 @@ def withdraw_group(req: HttpRequest):
     elif group.managers.contains(user):
         group.managers.remove(user)
         user.manage_group.remove(group)
-    elif group.members.contains(user):
+    else:
         user.member_of_group.remove(group) 
     group.save()
 
