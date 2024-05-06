@@ -66,7 +66,7 @@ def user_login(req: HttpRequest):
     
     if user:
         access_token = generate_jwt_token(user.userid)
-        return request_success({"code": 0, "info": "Succeed", "token": access_token, "statusCode": 200})
+        return request_success({"code": 0, "info": "Succeed", "token": access_token, "statusCode": 200, "userid": user.userid})
     else:
         return request_failed(2, "Invalid username or password", 401)
 
