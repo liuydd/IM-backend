@@ -52,6 +52,7 @@ class Friendship(models.Model):
     
     def serialize(self):
         return {
+            "friendid": self.friend.userid,
             "friend": self.friend.username,
             "labels": list(self.labels.values_list('labelname', flat=True))
         }
