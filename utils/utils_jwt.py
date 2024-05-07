@@ -2,8 +2,8 @@ import jwt
 from typing import Optional
 from DjangoHW.settings import SECRET_KEY
 
-def generate_jwt_token(username: str) -> str:
-    payload = {"username": username}
+def generate_jwt_token(userid: int) -> str:
+    payload = {"userid": userid}
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
 

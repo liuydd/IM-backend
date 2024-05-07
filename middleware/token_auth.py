@@ -12,6 +12,7 @@ class TokenAuthMiddleware:
     auth_url_prefixes = [
         '/friend',
         '/friends',
+        '/group',
     ]
     
     def __init__(self, get_response):
@@ -21,8 +22,8 @@ class TokenAuthMiddleware:
         if request.path in self.auth_urls or any([request.path.startswith(item) for item in self.auth_url_prefixes]):
             token = request.headers.get('Authorization')
             data = check_jwt_token(token)
-            if data is None or 'username' not in data:
+            if data is None or 'userid' not in data:
                 return JsonResponse({'status_code': 401, 'info': 'Invalid token'})
-            request.username = data['username']
+            request.userid = data['userid']
 
         return self.get_response(request)

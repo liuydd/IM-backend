@@ -13,13 +13,17 @@ class User(models.Model):
     created_time = models.FloatField(default=utils_time.get_timestamp)
     email = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
     phone_number = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
+
+    monitor_group = models.ManyToManyField('Group', blank=True, related_name="monitor_group")
+    manage_group = models.ManyToManyField('Group', blank=True, related_name="manage_group")
+    member_of_group = models.ManyToManyField('Group', blank=True, related_name="member_group")
     
     class Meta:
         indexes = [models.Index(fields=["username"])]
         
     def serialize(self):
         return {
-            # "userid": self.userid, 
+            "userid": self.userid, 
             "username": self.username,
             "email": self.email,
             "phoneNumber": self.phone_number
@@ -48,6 +52,7 @@ class Friendship(models.Model):
     
     def serialize(self):
         return {
+            "friendid": self.friend.userid,
             "friend": self.friend.username,
             "labels": list(self.labels.values_list('labelname', flat=True))
         }
@@ -69,19 +74,20 @@ class Message(models.Model):
 
     
 class Group(models.Model):
-    id = models.BigAutoField(primary_key=True)
+    groupid = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
-    monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor_group")
-    managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
-    members = models.ManyToManyField(User, blank=True)
+    monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor")
+    managers = models.ManyToManyField(User, blank=True, related_name="managers")
+    members = models.ManyToManyField(User, blank=True,related_name="members")
     announcements = models.ManyToManyField('Announcement', blank=True)
     
     def serialize(self):
         return {
-            "id": self.id,
+            "groupid": self.groupid,
             "groupname": self.groupname,
-            "monitor": self.monitor,
-            "members": list(self.members.values_list('user__username', flat=True))
+            "monitor": self.monitor.username,
+            "managers": list(self.managers.values_list('username', flat=True)),
+            "members": list(self.members.values_list('username', flat=True))
         }
     
 
@@ -111,5 +117,3 @@ class Announcement(models.Model):
             "content": self.content,
             "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         }
-
-
