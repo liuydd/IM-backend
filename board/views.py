@@ -7,7 +7,7 @@ from rest_framework.decorators import api_view # login_required
 from rest_framework.response import Response
 
 
-from .models import User, Friendship, Label, FriendRequest, Group
+from .models import User, Friendship, Label, FriendRequest, Group, Message,Announcement
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
 from utils.utils_require import MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, PHONE_NUMBER_LENGTH, CheckRequire, require
 from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
@@ -434,4 +434,35 @@ def remove_member(req: HttpRequest):
     return request_success({
         "code": 0,
         "info": "Succeed"
+    })
+
+@CheckRequire
+def edit_group_announcement(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(userid=body["userid"])
+    group = Group.objects.get(groupid=body["groupid"])
+    if group.monitor != user or user not in group.members.all():
+        return request_failed(1, "You don't have the permission to edit the announcement")
+    group.announcements.add(Announcement.objects.create(author=user, content=body["content"]))
+    group.save()
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+
+@CheckRequire
+def list_group_announcement(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(userid=body["userid"])
+    group = Group.objects.get(groupid=body["groupid"])
+    if user not in group.members.all():
+        return request_failed(1, "You don't have the permission to list the announcement")
+    return request_success({
+        "code": 0,
+        "info": "Succeed",
+        "announcements": [return_field(announcement.serialize(), ["announcementid","author", "content", "timestamp"]) for announcement in group.announcements.all()]
     })

@@ -20,4 +20,6 @@ urlpatterns = [
     path('group/assign_manager', views.assign_manager),
     path('group/list', views.list_group),
     path('group/remove_member', views.remove_member),
+    path('group/edit_announcement', views.edit_group_announcement),
+    path('group/list_announcement', views.list_group_announcement),
 ]

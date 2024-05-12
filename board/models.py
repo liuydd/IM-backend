@@ -72,14 +72,27 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
-    
+class Announcement(models.Model):
+    announcementid = models.BigAutoField(primary_key=True)
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="author_of_announcement")
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def serialize(self):
+        return {
+            "announcementid": self.announcementid,
+            "author": self.author.username,
+            "content": self.content,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        }
+
 class Group(models.Model):
     groupid = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
     monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor")
     managers = models.ManyToManyField(User, blank=True, related_name="managers")
     members = models.ManyToManyField(User, blank=True,related_name="members")
-    announcements = models.ManyToManyField('Announcement', blank=True)
+    announcements = models.ManyToManyField(Announcement, blank=True, related_name="announcements")
     
     def serialize(self):
         return {
@@ -87,7 +100,8 @@ class Group(models.Model):
             "groupname": self.groupname,
             "monitor": self.monitor.username,
             "managers": list(self.managers.values_list('username', flat=True)),
-            "members": list(self.members.values_list('username', flat=True))
+            "members": list(self.members.values_list('username', flat=True)),
+            "announcements": list(self.announcements.all().values())
         }
     
 
@@ -106,14 +120,3 @@ class FriendRequest(models.Model):
             "responseStatus": self.response_status
         }
         
-
-class Announcement(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-    
-    def serialize(self):
-        return {
-            "content": self.content,
-            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        }
