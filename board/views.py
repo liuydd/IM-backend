@@ -47,9 +47,9 @@ def register(req: HttpRequest):
         User.objects.get(username=username)
         return request_failed(2, "Username already exists", 409)
     except:
-        User.objects.create(username=username, password=password, email=email, phone_number=phone_number)
+        user = User.objects.create(username=username, password=password, email=email, phone_number=phone_number)
         
-        return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username)})
+        return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username), "userid": user.userid})
 
 
 @CheckRequire
@@ -65,7 +65,7 @@ def user_login(req: HttpRequest):
     
     if user:
         access_token = generate_jwt_token(user.userid)
-        return request_success({"code": 0, "info": "Succeed", "token": access_token, "statusCode": 200})
+        return request_success({"code": 0, "info": "Succeed", "token": access_token, "statusCode": 200, "userid": user.userid})
     else:
         return request_failed(2, "Invalid username or password", 401)
 
