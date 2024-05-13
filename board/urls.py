@@ -6,7 +6,6 @@ urlpatterns = [
     path('login', views.user_login, name='login'),
     path('logout', views.user_logout),
     path('delete_user', views.delete_account),
-    path('friends/get', views.fetch_friends),
     path('friends/delete', views.delete_friend),
     path('friends/label', views.label_friend),
     path('friends/list', views.list_friend),
