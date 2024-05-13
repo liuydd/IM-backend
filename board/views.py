@@ -278,6 +278,7 @@ def create_group(req: HttpRequest):
     new_group = Group.objects.create(monitor=user, groupname=groupname)
     for i in members:
         new_group.members.add(i)
+    new_group.members.add(user)
     return request_success({
         "code": 0, 
         "info": "Group created successfully"
@@ -429,7 +430,7 @@ def post_announcement(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
     group = Group.objects.get(groupid=body["groupid"])
-    if group.monitor != user or user not in group.members.all():
+    if group.monitor != user and user not in group.managers.all():
         return request_failed(1, "You don't have the permission to edit the announcement")
     group.announcements.add(Announcement.objects.create(author=user, content=body["content"]))
     group.save()
