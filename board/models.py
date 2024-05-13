@@ -48,7 +48,8 @@ class Friendship(models.Model):
     
     def serialize(self):
         return {
-            "friend": self.friend.serialize(),
+            "friend": self.friend.username,
+            "friendid": self.friend.userid,
             "labels": list(self.labels.values_list('labelname', flat=True))
         }
     
@@ -80,9 +81,9 @@ class Group(models.Model):
         return {
             "groupid": self.groupid,
             "groupname": self.groupname,
-            "monitor": self.monitor,
+            "monitor": self.monitor.username,
             "managers": list(self.managers.values_list('username', flat=True)),
-            "members": list(self.members.values_list('user__username', flat=True))
+            "members": list(self.members.values_list('username', flat=True))
         }
     
 
