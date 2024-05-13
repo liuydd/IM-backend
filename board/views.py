@@ -443,9 +443,9 @@ def post_announcement(req: HttpRequest):
     
 def send_invitation(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
-    userid = req.body["userid"]
-    groupid = req.body["groupid"]
-    friendid = req.body["friendid"]
+    userid = body["userid"]
+    groupid = body["groupid"]
+    friendid = body["friendid"]
     user = User.objects.get(userid=userid)
     group = Group.objects.get(groupid=groupid)
     friend = User.objects.get(userid=friendid)
@@ -464,8 +464,8 @@ def send_invitation(req: HttpRequest):
 
 def get_invitation(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
-    userid = req.body["userid"]
-    groupid = req.body["groupid"]
+    userid = body["userid"]
+    groupid = body["groupid"]
     user = User.objects.get(userid=userid)
     group = Group.objects.get(groupid=groupid)
     
@@ -483,8 +483,8 @@ def process_invitation(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
-    response = req.body["response"]
-    invitation = Invitation.objects.get(id=req.body["invitationid"])
+    response = body["response"]
+    invitation = Invitation.objects.get(id=body["invitationid"])
     if response == "Accept":
         target = invitation.receiver
         group = invitation.group
