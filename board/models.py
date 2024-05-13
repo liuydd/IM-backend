@@ -19,7 +19,7 @@ class User(models.Model):
         
     def serialize(self):
         return {
-            # "userid": self.userid, 
+            "userid": self.userid, 
             "username": self.username,
             "email": self.email,
             "phoneNumber": self.phone_number
@@ -48,7 +48,7 @@ class Friendship(models.Model):
     
     def serialize(self):
         return {
-            "friend": self.friend.username,
+            "friend": self.friend.serialize(),
             "labels": list(self.labels.values_list('labelname', flat=True))
         }
     
@@ -73,7 +73,7 @@ class Group(models.Model):
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
     monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor_group")
     managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
-    members = models.ManyToManyField(User, blank=True)
+    members = models.ManyToManyField(User, blank=True, related_name='member_of_group')
     announcements = models.ManyToManyField('Announcement', blank=True)
     
     def serialize(self):
