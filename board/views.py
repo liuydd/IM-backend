@@ -6,10 +6,9 @@ from django.shortcuts import render, redirect
 from rest_framework.decorators import api_view # login_required
 from rest_framework.response import Response
 
-
-from .models import User, Friendship, Label, FriendRequest, Group
+from .models import User, Friendship, Label, FriendRequest, Group, Announcement, Invitation
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
-from utils.utils_require import MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, PHONE_NUMBER_LENGTH, CheckRequire, require
+from utils.utils_require import MAX_ANNOUNCEMENT_LENGTH, CheckRequire, require
 from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
 from utils.utils_time import get_timestamp
 from utils.utils_jwt import generate_jwt_token, check_jwt_token
@@ -50,7 +49,7 @@ def register(req: HttpRequest):
     except:
         user = User.objects.create(username=username, password=password, email=email, phone_number=phone_number)
         
-        return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(user.userid), "userid": user.userid})
+        return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username), "userid": user.userid})
 
 
 @CheckRequire
@@ -175,25 +174,12 @@ def modify_profile(req: HttpRequest):
     if user.password != password:
         return request_failed(1, "Wrong password", status_code=404)
     
-    if body["newUsername"]:
-        user.username = body["newUsername"]
     if body["newPassword"]:
         user.password = body["newPassword"]
     if body["newEmail"]:
-        email = body["newEmail"]
-        if User.objects.filter(email=email).exists():
-            return request_failed(1, "Email already used", status_code=400)
-        user.email = email
+        user.email = body["newEmail"]
     if body["newPhoneNumber"]:
-        number = body["newPhoneNumber"]
-        if User.objects.filter(phone_number=number).exists():
-            return request_failed(1, "Phone number already used", status_code=400)
-        user.phone_number = number
-    if body["newUsername"]:
-        name = body["newUsername"]
-        if User.objects.filter(username=name).exists():
-            return request_failed(1, "Username already used", status_code=400)
-        user.username = name
+        user.phone_number = body["newPhoneNumber"]
     
     user.save()
     
@@ -290,10 +276,9 @@ def create_group(req: HttpRequest):
     members = [User.objects.get(userid=i) for i in body["members"]]
     groupname = ", ".join([member.username for member in members])
     new_group = Group.objects.create(monitor=user, groupname=groupname)
-    user.monitor_group.add(new_group)
     for i in members:
         new_group.members.add(i)
-        i.member_of_group.add(new_group)
+    new_group.members.add(user)
     return request_success({
         "code": 0, 
         "info": "Group created successfully"
@@ -316,11 +301,7 @@ def transfer_monitor(req: HttpRequest):
         return request_failed(1, "The new monitor is not in the group", status_code=404)
     if new_monitor in group.managers.all():
         group.managers.remove(new_monitor)
-        new_monitor.manage_group.remove(group)
     group.monitor = new_monitor
-    new_monitor.monitor_group.add(group)
-    user.monitor_group.remove(group)
-    user.member_of_group.add(group)
     group.save()
     return request_success({
         "code": 0,
@@ -337,7 +318,6 @@ def withdraw_group(req: HttpRequest):
     user = User.objects.get(userid=body["userid"])
     group.members.remove(user)
     if group.monitor == user:
-        user.monitor_group.remove(group)
         if group.managers.exists():
             group.monitor = group.managers.first()
             group.managers.remove(group.monitor)
@@ -350,9 +330,6 @@ def withdraw_group(req: HttpRequest):
                 group.delete()
     elif group.managers.contains(user):
         group.managers.remove(user)
-        user.manage_group.remove(group)
-    else:
-        user.member_of_group.remove(group) 
     group.save()
 
     return request_success({
@@ -377,7 +354,6 @@ def assign_manager(req: HttpRequest):
         return request_failed(1, "The target user is already one of the managers")
 
     group.managers.add(new_manager)
-    new_manager.manage_group.add(group)
     group.save()
 
     return request_success({
@@ -388,18 +364,13 @@ def assign_manager(req: HttpRequest):
 
 @CheckRequire
 def list_group(req: HttpRequest):
-    if req.method != "GET":
-        return BAD_METHOD
     user = User.objects.get(userid=req.GET["userid"])
-    monitor_group = [group.serialize() for group in user.monitor_group.all()]
-    manage_group = [group.serialize() for group in user.manage_group.all()]
-    member_of_group = [group.serialize() for group in user.member_of_group.all()]
     return request_success({
         "code": 0,
         "info": "Group list retrieved successfully",
-        "monitorGroup": monitor_group,
-        "manageGroup": manage_group,
-        "memberOfGroup": member_of_group
+        "monitorGroup": [group.serialize() for group in user.monitor_group.all()],
+        "manageGroup": [group.serialize() for group in user.manage_group.all()],
+        "memberOfGroup": [group.serialize() for group in user.member_of_group.all()]
     })
 
 
@@ -435,3 +406,94 @@ def remove_member(req: HttpRequest):
         "code": 0,
         "info": "Succeed"
     })
+
+@CheckRequire
+def list_announcement(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(userid=body["userid"])
+    group = Group.objects.get(groupid=body["groupid"])
+
+    if not group.members.contains(user):
+        return request_failed(1, "You are not a member of this group")
+
+    announcements = Announcement.objects.filter(group=group)
+    return request_success({
+        "code": 0,
+        "info": "Succeed",
+        "announcements": [announcement.serialize() for announcement in announcements]
+    })
+
+@CheckRequire
+def post_announcement(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(userid=body["userid"])
+    group = Group.objects.get(groupid=body["groupid"])
+    if group.monitor != user and user not in group.managers.all():
+        return request_failed(1, "You don't have the permission to edit the announcement")
+    group.announcements.add(Announcement.objects.create(author=user, content=body["content"]))
+    group.save()
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+
+    
+    
+def send_invitation(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    userid = body["userid"]
+    groupid = body["groupid"]
+    friendid = body["friendid"]
+    user = User.objects.get(userid=userid)
+    group = Group.objects.get(groupid=groupid)
+    friend = User.objects.get(userid=friendid)
+    if group.members.contains(friend):
+        return request_failed(1, "This user is already a member of this group")
+    
+    if group.monitor == user or group.managers.contains(user):
+        group.members.add(friend)
+    else:
+        Invitation.objects.create(sender=user, receiver=friend, group=group)
+    
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+
+def get_invitation(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
+    userid = body["userid"]
+    groupid = body["groupid"]
+    user = User.objects.get(userid=userid)
+    group = Group.objects.get(groupid=groupid)
+    
+    if group.monitor == user or group.managers.contains(user):
+        invitations = Invitation.objects.filter(group=group)
+        return request_success({
+            "code": 0,
+            "info": "Succeed",
+            "invitations": [invitation.serialize() for invitation in invitations]
+        })
+    else:
+        return request_failed(1, "You are not allowed to get invitations")
+    
+def process_invitation(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    response = body["response"]
+    invitation = Invitation.objects.get(id=body["invitationid"])
+    if response == "Accept":
+        target = invitation.receiver
+        group = invitation.group
+        group.members.add(target)
+    
+    invitation.delete()
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+    
+    

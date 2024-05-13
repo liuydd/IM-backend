@@ -1,6 +1,6 @@
 import random
 from django.test import TestCase, Client
-from board.models import User, UserProfile,Friendship,Label,PrivateChat,Message,Group,FriendRequest
+from board.models import User, UserProfile,Friendship,Label,PrivateChat,Message,Group,FriendRequest,Announcement
 import datetime
 import hashlib
 import hmac
@@ -59,6 +59,10 @@ class BoardTests(TestCase):
         self.idolgroup.managers.add(self.friend2)
         self.friend2.manage_group.add(self.idolgroup)
         self.sendmefriendrequest.monitor_group.add(self.idolgroup)
+
+        #announcements:
+        self.announcement = Announcement.objects.create(content='This is a test announcement',author=self.user)
+        self.Mygroup.announcements.add(self.announcement)
 
     #Tests:
     def test_register_new_user(self):
@@ -252,3 +256,17 @@ class BoardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertFalse(Group.objects.filter(groupname='Dream Team').first().members.filter(userid=4).exists())
+
+    def test_edit_announcement(self):
+        data = {'userid': 1,'groupid': 2,'content': 'New Announcement'}
+        response = self.client.post('/group/edit_announcement', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(Group.objects.filter(groupname='Band').first().announcements.first().content,'New Announcement')
+    
+    def test_list_announcement(self):
+        data = {'userid': 1,'groupid': 1}
+        response = self.client.post('/group/list_announcement', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['announcements'][0]['content'],'This is a test announcement')
