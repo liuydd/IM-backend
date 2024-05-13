@@ -13,17 +13,13 @@ class User(models.Model):
     created_time = models.FloatField(default=utils_time.get_timestamp)
     email = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
     phone_number = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
-
-    monitor_group = models.ManyToManyField('Group', blank=True, related_name="monitor_group")
-    manage_group = models.ManyToManyField('Group', blank=True, related_name="manage_group")
-    member_of_group = models.ManyToManyField('Group', blank=True, related_name="member_group")
     
     class Meta:
         indexes = [models.Index(fields=["username"])]
         
     def serialize(self):
         return {
-            "userid": self.userid, 
+            # "userid": self.userid, 
             "username": self.username,
             "email": self.email,
             "phoneNumber": self.phone_number
@@ -52,7 +48,6 @@ class Friendship(models.Model):
     
     def serialize(self):
         return {
-            "friendid": self.friend.userid,
             "friend": self.friend.username,
             "labels": list(self.labels.values_list('labelname', flat=True))
         }
@@ -72,36 +67,22 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
-class Announcement(models.Model):
-    announcementid = models.BigAutoField(primary_key=True)
-    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="author_of_announcement")
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-    def serialize(self):
-        return {
-            "announcementid": self.announcementid,
-            "author": self.author.username,
-            "content": self.content,
-            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        }
-
+    
 class Group(models.Model):
     groupid = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
-    monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor")
-    managers = models.ManyToManyField(User, blank=True, related_name="managers")
-    members = models.ManyToManyField(User, blank=True,related_name="members")
-    announcements = models.ManyToManyField(Announcement, blank=True, related_name="announcements")
+    monitor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="monitor_group")
+    managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
+    members = models.ManyToManyField(User, blank=True)
+    announcements = models.ManyToManyField('Announcement', blank=True)
     
     def serialize(self):
         return {
             "groupid": self.groupid,
             "groupname": self.groupname,
-            "monitor": self.monitor.username,
+            "monitor": self.monitor,
             "managers": list(self.managers.values_list('username', flat=True)),
-            "members": list(self.members.values_list('username', flat=True)),
-            "announcements": list(self.announcements.all().values())
+            "members": list(self.members.values_list('user__username', flat=True))
         }
     
 
@@ -120,3 +101,33 @@ class FriendRequest(models.Model):
             "responseStatus": self.response_status
         }
         
+
+class Announcement(models.Model):
+    announcementid = models.BigAutoField(primary_key=True)
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="author_of_announcement")
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def serialize(self):
+        return {
+            "announcementid": self.announcementid,
+            "author": self.author.serialize(),
+            "content": self.content,
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        }
+
+
+class Invitation(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_invitations")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_invitations")
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="invitations")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    def serialize(self):
+        return {
+            "id": self.id,
+            "sender": self.sender.serialize(),
+            "receiver": self.receiver.serialize(),
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        }
