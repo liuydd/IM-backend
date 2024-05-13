@@ -245,7 +245,7 @@ class BoardTests(TestCase):
     
     def test_list_group(self):
         data = {'userid': 1}
-        response = self.client.post('/group/list', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        response = self.client.get('/group/list', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertEqual(response.json()['monitorGroup'][0]['groupname'],'Dream Team')
