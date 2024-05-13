@@ -6,6 +6,7 @@ urlpatterns = [
     path('login', views.user_login, name='login'),
     path('logout', views.user_logout),
     path('delete_user', views.delete_account),
+    path('friends/get', views.fetch_friends),
     path('friends/delete', views.delete_friend),
     path('friends/label', views.label_friend),
     path('friends/list', views.list_friend),
@@ -20,6 +21,9 @@ urlpatterns = [
     path('group/assign_manager', views.assign_manager),
     path('group/list', views.list_group),
     path('group/remove_member', views.remove_member),
-    path('group/edit_announcement', views.edit_group_announcement),
-    path('group/list_announcement', views.list_group_announcement),
+    path('group/edit_announcement', views.post_announcement),
+    path('group/list_announcement', views.list_announcement),
+    path('group/invitation/send', views.send_invitation),
+    path('group/invitation/process', views.process_invitation),
+    path('group/invitation/get', views.get_invitation)
 ]
