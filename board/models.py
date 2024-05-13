@@ -127,7 +127,9 @@ class Invitation(models.Model):
     def serialize(self):
         return {
             "id": self.id,
-            "sender": self.sender.serialize(),
-            "receiver": self.receiver.serialize(),
+            "senderid": self.sender.userid,
+            'sender': self.sender.username,
+            "receiverid": self.receiver.userid,
+            'receiver': self.receiver.username,
             "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         }
