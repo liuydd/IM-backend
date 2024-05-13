@@ -511,4 +511,19 @@ def process_invitation(req: HttpRequest):
         target = invitation.receiver
         group = invitation.group
         group.members.add(target)
-        
+    
+    invitation.delete()
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+    
+def fetch_friends(req: HttpRequest):
+    userid = req.body["userid"]
+    user = User.objects.get(userid=userid)
+    friendships = Friendship.objects.filter(user=user)
+    return request_success({
+        "code": 0,
+        "info": "Success",
+        "friends": [fs.serialize() for fs in friendships]
+    })
