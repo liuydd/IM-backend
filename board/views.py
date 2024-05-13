@@ -449,10 +449,10 @@ def send_invitation(req: HttpRequest):
     user = User.objects.get(userid=userid)
     group = Group.objects.get(groupid=groupid)
     friend = User.objects.get(userid=friendid)
-    if group.members.contains(user):
+    if group.members.contains(friend):
         return request_failed(1, "This user is already a member of this group")
     
-    if group.monitor is user or group.managers.contains(user):
+    if group.monitor == user or group.managers.contains(user):
         group.members.add(friend)
     else:
         Invitation.objects.create(sender=user, receiver=friend, group=group)
@@ -469,7 +469,7 @@ def get_invitation(req: HttpRequest):
     user = User.objects.get(userid=userid)
     group = Group.objects.get(groupid=groupid)
     
-    if group.monitor is user or group.managers.contains(user):
+    if group.monitor == user or group.managers.contains(user):
         invitations = Invitation.objects.filter(group=group)
         return request_success({
             "code": 0,
