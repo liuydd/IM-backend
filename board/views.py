@@ -6,7 +6,6 @@ from django.shortcuts import render, redirect
 from rest_framework.decorators import api_view # login_required
 from rest_framework.response import Response
 
-
 from .models import User, Friendship, Label, FriendRequest, Group, Announcement, Invitation
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
 from utils.utils_require import MAX_ANNOUNCEMENT_LENGTH, CheckRequire, require
@@ -160,7 +159,7 @@ def list_friend(req: HttpRequest):
     return request_success({
         "code": 0,
         "info": "Succeed",
-        "friendList": [return_field(friendship.serialize(), ["friend", "labels"]) for friendship in friendships]
+        "friendList": [return_field(friendship.serialize(), ["friendid", "friend", "labels"]) for friendship in friendships]
     })
     
     
@@ -196,7 +195,7 @@ def send_friend_request(req: HttpRequest):
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
-    friend = User.objects.get(userid=body["friendid"])
+    friend = User.objects.get(username=body["friend"])
     
     # 双方已是好友
     if Friendship.objects.filter(user=user, friend=friend).exists():
@@ -227,7 +226,7 @@ def respond_friend_request(req: HttpRequest):
         return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
-    friend = User.objects.get(userid=body["friendid"])
+    friend = User.objects.get(username=body["friend"])
     friend_request = FriendRequest.objects.get(sender=friend, receiver=user, response_status="pending")
     
     if body["response"] == "Accept":
@@ -277,10 +276,8 @@ def create_group(req: HttpRequest):
     members = [User.objects.get(userid=i) for i in body["members"]]
     groupname = ", ".join([member.username for member in members])
     new_group = Group.objects.create(monitor=user, groupname=groupname)
-    user.monitor_group.add(new_group)
     for i in members:
         new_group.members.add(i)
-        i.member_of_group.add(new_group)
     return request_success({
         "code": 0, 
         "info": "Group created successfully"
@@ -303,10 +300,7 @@ def transfer_monitor(req: HttpRequest):
         return request_failed(1, "The new monitor is not in the group", status_code=404)
     if new_monitor in group.managers.all():
         group.managers.remove(new_monitor)
-        new_monitor.manage_group.remove(group)
     group.monitor = new_monitor
-    new_monitor.monitor_group.add(group)
-    user.monitor_group.remove(group)
     group.save()
     return request_success({
         "code": 0,
@@ -369,18 +363,14 @@ def assign_manager(req: HttpRequest):
 
 @CheckRequire
 def list_group(req: HttpRequest):
-    if req.method != "GET":
-        return BAD_METHOD
-    user = User.objects.get(userid=req.GET["userid"])
-    monitor_group = [group.serialize() for group in user.monitor_group.all()]
-    manage_group = [group.serialize() for group in user.manage_group.all()]
-    member_of_group = [group.serialize() for group in user.member_of_group.all()]
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(userid=body["userid"])
     return request_success({
         "code": 0,
         "info": "Group list retrieved successfully",
-        "monitorGroup": monitor_group,
-        "manageGroup": manage_group,
-        "memberOfGroup": member_of_group
+        "monitorGroup": [group.serialize() for group in user.monitor_group.all()],
+        "manageGroup": [group.serialize() for group in user.manage_group.all()],
+        "memberOfGroup": [group.serialize() for group in user.member_of_group.all()]
     })
 
 
@@ -419,8 +409,6 @@ def remove_member(req: HttpRequest):
 
 @CheckRequire
 def list_announcement(req: HttpRequest):
-    if req.method != "GET":
-        return BAD_METHOD
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
     group = Group.objects.get(groupid=body["groupid"])
@@ -442,26 +430,15 @@ def post_announcement(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
     group = Group.objects.get(groupid=body["groupid"])
-    announcement = json.loads(body["announcement"])
-    prevAnnouncement = group.announcements.last()
-
-    if group.monitor is not user and not group.managers.contains(user):
-        return request_failed(1, "You are not allowed to post announcement")
-    
-    if not 0 < len(announcement) <= MAX_ANNOUNCEMENT_LENGTH:
-        return request_failed(1, "Announcement length should be between 1 and 1000")
-    
-    if prevAnnouncement and announcement == prevAnnouncement.content:
-        return request_failed(1, "You cannot post the same announcement twice")
-    
-    newPiece = Announcement.objects.create(content=announcement)
-    group.announcements.add(newPiece)
+    if group.monitor != user or user not in group.members.all():
+        return request_failed(1, "You don't have the permission to edit the announcement")
+    group.announcements.add(Announcement.objects.create(author=user, content=body["content"]))
     group.save()
-    
     return request_success({
         "code": 0,
         "info": "Succeed"
     })
+
     
     
 def send_invitation(req: HttpRequest):
@@ -518,12 +495,4 @@ def process_invitation(req: HttpRequest):
         "info": "Succeed"
     })
     
-def fetch_friends(req: HttpRequest):
-    userid = req.body["userid"]
-    user = User.objects.get(userid=userid)
-    friendships = Friendship.objects.filter(user=user)
-    return request_success({
-        "code": 0,
-        "info": "Success",
-        "friends": [fs.serialize() for fs in friendships]
-    })
+    
