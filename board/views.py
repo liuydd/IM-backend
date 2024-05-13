@@ -416,22 +416,6 @@ def remove_member(req: HttpRequest):
         "code": 0,
         "info": "Succeed"
     })
-    
-@CheckRequire
-def edit_group_announcement(req: HttpRequest):
-    if req.method != "POST":
-        return BAD_METHOD
-    body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(userid=body["userid"])
-    group = Group.objects.get(groupid=body["groupid"])
-    if group.monitor != user and user not in group.managers:
-        return request_failed(1, "You don't have the permission to edit the announcement")
-    group.announcements.add(Announcement.objects.create(author=user, content=body["content"]))
-    group.save()
-    return request_success({
-        "code": 0,
-        "info": "Succeed"
-    })
 
 @CheckRequire
 def list_announcement(req: HttpRequest):
@@ -517,3 +501,14 @@ def get_invitation(req: HttpRequest):
         })
     else:
         return request_failed(1, "You are not allowed to get invitations")
+    
+def process_invitation(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    response = req.body["response"]
+    invitation = Invitation.objects.get(id=req.body["invitationid"])
+    if response == "Accept":
+        target = invitation.receiver
+        group = invitation.group
+        group.members.add(target)
+        
