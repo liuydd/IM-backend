@@ -442,28 +442,28 @@ def post_announcement(req: HttpRequest):
     
     
 def send_invitation(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
     userid = req.body["userid"]
     groupid = req.body["groupid"]
     friendid = req.body["friendid"]
     user = User.objects.get(userid=userid)
     group = Group.objects.get(groupid=groupid)
     friend = User.objects.get(userid=friendid)
-    if friend in group.members:
+    if group.members.contains(user):
         return request_failed(1, "This user is already a member of this group")
-    if group.monitor is user or user in group.managers:
+    
+    if group.monitor is user or group.managers.contains(user):
         group.members.add(friend)
-        return request_success({
-            "code": 0,
-            "info": "Succeed"
-        })
     else:
         Invitation.objects.create(sender=user, receiver=friend, group=group)
-        return request_success({
-            "code": 0,
-            "info": "Succeed"
-        })
+    
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
 
 def get_invitation(req: HttpRequest):
+    body = json.loads(req.body.decode("utf-8"))
     userid = req.body["userid"]
     groupid = req.body["groupid"]
     user = User.objects.get(userid=userid)
@@ -482,6 +482,7 @@ def get_invitation(req: HttpRequest):
 def process_invitation(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
     response = req.body["response"]
     invitation = Invitation.objects.get(id=req.body["invitationid"])
     if response == "Accept":
