@@ -83,7 +83,8 @@ class Group(models.Model):
             "groupname": self.groupname,
             "monitor": self.monitor.username,
             "managers": list(self.managers.values_list('username', flat=True)),
-            "members": list(self.members.values_list('username', flat=True))
+            "members": list(self.members.values_list('username', flat=True)),
+            "announcements": list(self.announcements.values_list('content', flat=True))
         }
     
 
@@ -112,7 +113,7 @@ class Announcement(models.Model):
     def serialize(self):
         return {
             "announcementid": self.announcementid,
-            "author": self.author.serialize(),
+            "author": self.author.username,
             "content": self.content,
             "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         }
