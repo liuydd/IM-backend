@@ -363,8 +363,7 @@ def assign_manager(req: HttpRequest):
 
 @CheckRequire
 def list_group(req: HttpRequest):
-    body = json.loads(req.body.decode("utf-8"))
-    user = User.objects.get(userid=body["userid"])
+    user = User.objects.get(userid=req.GET["userid"])
     return request_success({
         "code": 0,
         "info": "Group list retrieved successfully",
