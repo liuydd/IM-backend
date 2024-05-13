@@ -82,8 +82,8 @@ class Group(models.Model):
             "groupid": self.groupid,
             "groupname": self.groupname,
             "monitor": self.monitor.username,
-            "managers": list(self.managers.values_list('username', flat=True)),
-            "members": list(self.members.values_list('username', flat=True)),
+            "managers": [{"name": m.username, "id": m.userid} for m in self.managers.all()],
+            "members": [{"name": m.username, "id": m.userid} for m in self.members.all()],
             "announcements": list(self.announcements.values_list('content', flat=True))
         }
     
