@@ -42,6 +42,7 @@ class Friendship(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendships_as_user')  
     friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_as_friend')
     labels = models.ManyToManyField(Label, blank=True)
+    convo = models.ForeignKey('Conversation', null=True, blank=True)
     
     class Meta:
         unique_together = ('user', 'friend')  
@@ -78,6 +79,7 @@ class Group(models.Model):
     managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
     members = models.ManyToManyField(User, blank=True, related_name='member_of_group')
     announcements = models.ManyToManyField('Announcement', blank=True)
+    convo = models.ForeignKey(Conversation, on_delete=True)
     
     def serialize(self):
         return {
