@@ -529,10 +529,13 @@ def delete_message(req: HttpRequest):
 def messages(request: HttpRequest) -> HttpResponse: 
     if request.method == "POST":
         data = json.loads(request.body)
-        conversation_id = data.get('conversation_id')
-        sender_userid = data.get('userid')
+        conversation_id = data.get('conversation_id', '-1')
+        sender_userid = data.get('userid', '-1')
         content = data.get('content', '')
         respond_target = data.get('target', '')
+        
+        conversation_id = int(conversation_id)
+        sender_userid = int(sender_userid)
 
         # 验证 conversation_id 和 sender_username 的合法性
         try:
