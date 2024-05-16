@@ -526,7 +526,7 @@ def delete_message(req: HttpRequest):
 
 # Create your views here.
 @require_http_methods(["POST", "GET"])
-def messages(request: HttpRequest) -> HttpResponse:
+def messages(request: HttpRequest) -> HttpResponse: 
     if request.method == "POST":
         data = json.loads(request.body)
         conversation_id = data.get('conversation_id')
@@ -684,7 +684,11 @@ def format_message(message: Message) -> dict:
         'sender': message.sender.username,
         'receivers': [user.username for user in message.receivers.all()],
         'content': message.content,
-        'timestamp': to_timestamp(message.timestamp)
+        'timestamp': to_timestamp(message.timestamp),
+        'responseCount': message.response_count,
+        'isRead': bool(len(message.already_read) == 2),
+        'readBy': [user.username for user in message.already_read.all()],
+        'conversationType': message.conversation.type,
     }
     if message.reply_to_id:
         ret['reply_to'] = message.reply_to_id
