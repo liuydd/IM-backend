@@ -106,6 +106,9 @@ def delete_friend(req: HttpRequest):
         friendship.delete()
         friendship = Friendship.objects.get(user=friend, friend=user)
         friendship.delete()
+        members = [user, friend]
+        convo = Conversation.objects.filter(members__in=members, type='private_chat').prefetch_related('members').distinct().first()
+        convo.delete()
         return request_success({"code": 0, "info": "Success"})
     except:
         return request_failed(1, "Target user not in friend list", status_code=404)
@@ -241,6 +244,8 @@ def respond_friend_request(req: HttpRequest):
         friend_request.save()
         Friendship.objects.create(user=user, friend=friend)
         Friendship.objects.create(user=friend, friend=user)
+        convo = Conversation.objects.create(type='private_chat')
+        convo.members.add(user, friend)
         return request_success({
             "code": 0,
             "info": "Succeed"
@@ -282,10 +287,13 @@ def create_group(req: HttpRequest):
     user = User.objects.get(userid=body["userid"])
     members = [User.objects.get(userid=i) for i in body["members"]]
     groupname = ", ".join([member.username for member in members])
-    new_group = Group.objects.create(monitor=user, groupname=groupname)
+    convo = Conversation.objects.create(type='group_chat')
+    new_group = Group.objects.create(monitor=user, groupname=groupname, convo=convo)
     for i in members:
         new_group.members.add(i)
     new_group.members.add(user)
+    for m in members:
+        convo.members.add(m)
     return request_success({
         "code": 0, 
         "info": "Group created successfully"
@@ -337,6 +345,7 @@ def withdraw_group(req: HttpRequest):
                 group.delete()
     elif group.managers.contains(user):
         group.managers.remove(user)
+    group.convo.members.remove(user)
     group.save()
 
     return request_success({
@@ -414,6 +423,8 @@ def remove_member(req: HttpRequest):
     
     else:
         return request_failed(1, "You are not allowed to kick anyone out of group")
+    
+    group.convo.members.remove(target)
     
     return request_success({
         "code": 0,
@@ -500,6 +511,7 @@ def process_invitation(req: HttpRequest):
         target = invitation.receiver
         group = invitation.group
         group.members.add(target)
+        group.convo.members.add(target)
     
     invitation.delete()
     return request_success({
@@ -520,7 +532,7 @@ def process_invitation(req: HttpRequest):
 def messages(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         data = json.loads(request.body)
-        conversation_id = data.get('conversation_id')
+        conversation_id = data.get('conversationId')
         sender_userid = data.get('userid')
         content = data.get('content', '')
         respond_target = data.get('target', '')
@@ -562,7 +574,7 @@ def messages(request: HttpRequest) -> HttpResponse:
 
     elif request.method == "GET":
         userid: str = request.GET.get('userid')
-        conversation_id: str = request.GET.get('conversation_id')
+        conversation_id: str = request.GET.get('conversationId')
         after: str = request.GET.get('after', '0')
         after_datetime = datetime.fromtimestamp((int(after) + 1) / 1000.0, tz=timezone.utc)
         limit: int = int(request.GET.get('limit', '100'))
@@ -646,7 +658,7 @@ def filter_messages(req: HttpRequest):
     
     userid = req.GET.get('userid')
     user = User.objects.get(id=userid)
-    conversation_id = req.GET.get('conversation_id')
+    conversation_id = req.GET.get('conversationId')
     convo = Conversation.objects.get(id=conversation_id)
     if user not in convo.members.all():
         return JsonResponse({'error': 'User is not a member of the conversation'}, status=403)
@@ -661,52 +673,6 @@ def filter_messages(req: HttpRequest):
     return JsonResponse({'messages': [format_message(m) for m in messages]}, status=200)
     
     
-# @require_http_methods(["POST"])
-# def join_conversation(request: HttpRequest, conversation_id: int) -> HttpResponse:
-#     data = json.loads(request.body)
-#     username = data.get('username')
-
-#     # 验证 conversation_id 和 username 的合法性
-#     try:
-#         conversation = Conversation.objects.prefetch_related('members').get(id=conversation_id) 
-#     except Conversation.DoesNotExist:
-#         return JsonResponse({'error': 'Invalid conversation ID'}, status=404)
-
-#     if conversation.type == 'private_chat':
-#         return JsonResponse({'error': 'Unable to join private chat'}, status=403)
-    
-#     try:
-#         user = User.objects.get(username=username)
-#     except User.DoesNotExist:
-#         return JsonResponse({'error': 'Invalid username'}, status=404)
-    
-#     conversation.members.add(user)
-
-#     return JsonResponse({'result': 'success'}, status=200)
-
-# @require_http_methods(["POST"])
-# def leave_conversation(request: HttpRequest, conversation_id: int) -> HttpResponse:
-#     data = json.loads(request.body)
-#     username = data.get('username')
-
-#     # 验证 conversation_id 和 username 的合法性
-#     try:
-#         conversation = Conversation.objects.prefetch_related('members').get(id=conversation_id) 
-#     except Conversation.DoesNotExist:
-#         return JsonResponse({'error': 'Invalid conversation ID'}, status=404)
-
-#     if conversation.type == 'private_chat':
-#         return JsonResponse({'error': 'Unable to leave private chat'}, status=403)
-    
-#     try:
-#         user = User.objects.get(username=username)
-#     except User.DoesNotExist:
-#         return JsonResponse({'error': 'Invalid username'}, status=404)
-    
-#     conversation.members.remove(user)
-
-#     return JsonResponse({'result': 'success'}, status=200)
-
 def to_timestamp(dt: datetime) -> int:
     # 转换为毫秒级 UNIX 时间戳
     return int(dt.timestamp() * 1_000)
@@ -727,7 +693,5 @@ def format_conversation(conversation: Conversation) -> dict:
     return {
         'id': conversation.id,
         'type': conversation.type,
-        'members': [user.username for user in conversation.members.all()],
+        'members': [{'userid': user.userid, 'username': user.username} for user in conversation.members.all()],
     }
-
-
