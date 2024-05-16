@@ -59,10 +59,12 @@ class Conversation(models.Model):
         ('private_chat', 'Private Chat'),
         ('group_chat', 'Group Chat'),
     ]
+    id = models.BigAutoField(primary_key=True)
     type = models.CharField(max_length=12, choices=TYPE_CHOICES)
     members = models.ManyToManyField(User, related_name='conversations')
 
 class Message(models.Model):
+    id = models.BigAutoField(primary_key=True)
     conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE, null=True, blank=True)
     sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
     receivers = models.ManyToManyField(User, related_name='received_messages')
@@ -79,7 +81,6 @@ class Group(models.Model):
     managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
     members = models.ManyToManyField(User, blank=True, related_name='member_of_group')
     announcements = models.ManyToManyField('Announcement', blank=True)
-    convo = models.ForeignKey(Conversation, on_delete=models.CASCADE)
     
     def serialize(self):
         return {

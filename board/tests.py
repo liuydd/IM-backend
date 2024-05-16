@@ -1,6 +1,6 @@
 import random
 from django.test import TestCase, Client
-from board.models import User, UserProfile,Friendship,Label,PrivateChat,Message,Group,FriendRequest,Announcement
+from board.models import User, UserProfile,Friendship,Label,Message,Group,FriendRequest,Announcement,Conversation,Invitation
 import datetime
 import hashlib
 import hmac
@@ -64,6 +64,14 @@ class BoardTests(TestCase):
         self.announcement = Announcement.objects.create(content='This is a test announcement',author=self.user)
         self.Mygroup.announcements.add(self.announcement)
 
+        #Invitations:
+        Invitation.objects.create(sender=self.friend1,receiver=self.sendmefriendrequest,group=self.Mygroup)
+        #Conversations:
+        self.conversation = Conversation.objects.create(type='private_chat')
+        self.conversation.members.add(self.user)
+        self.conversation.members.add(self.friend1)
+
+
     #Tests:
     def test_register_new_user(self):
         data = {"username": "newuser", "password": "12345678", "email": "", "phoneNumber": ""}
@@ -107,6 +115,13 @@ class BoardTests(TestCase):
         self.assertEqual(res.status_code, 401)
         self.assertEqual(res.json()['code'], 2)
     
+    def test_modify_profile(self):
+        data = {"userid": 1,"password":"Whatsupbro","newUsername": "Inion", "newEmail": "Yoshikawa_Yūko", "newPhoneNumber": "11100011100", "newPassword": "20030415"}
+        res = self.client.post('/modify', data=data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['code'], 0)
+        self.assertTrue(User.objects.filter(username="Inion", email="Yoshikawa_Yū", phone_number="11100011100").exists())
+
     def test_delete_user(self):
         self.assertTrue(User.objects.filter(userid = 1).exists())
         data={'userid':1}
@@ -270,3 +285,25 @@ class BoardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertEqual(response.json()['announcements'][0]['content'],'This is a test announcement')
+
+    def test_send_invitation(self):
+        data = {'userid': 1,'groupid': 1,'friendid': 5}
+        response = self.client.post('/group/invitation/send', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+       
+
+    # def test_get_invitation(self):
+    #     data = {'userid': 1, 'groupid': 1}
+    #     response = self.client.get('/group/invitation/get', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+    #     self.assertEqual(response.status_code, 200)
+    #     self.assertEqual(response.json()['code'], 0)
+    #     self.assertEqual(response.json()['invitations'][0]['sender'],'Hentai')
+
+    # # def test_process_invitation(self):
+    #     self.assertFalse(Group.objects.filter(groupname='Dream Team').first().members.filter(userid=5).exists())
+    #     data = {'invitationid': 1,'response': 'Accept'}
+    #     response = self.client.post('/group/invitation/process', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+    #     self.assertEqual(response.status_code, 200)
+    #     self.assertEqual(response.json()['code'], 0)
+    #     self.assertTrue(Group.objects.filter(groupname='Dream Team').first().members.filter(userid=5).exists())

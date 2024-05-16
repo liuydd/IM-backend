@@ -184,6 +184,8 @@ def modify_profile(req: HttpRequest):
     if user.password != password:
         return request_failed(1, "Wrong password", status_code=404)
     
+    if body["newUsername"]:
+        user.username = body["newUsername"]
     if body["newPassword"]:
         user.password = body["newPassword"]
     if body["newEmail"]:
@@ -288,7 +290,7 @@ def create_group(req: HttpRequest):
     members = [User.objects.get(userid=i) for i in body["members"]]
     groupname = ", ".join([member.username for member in members])
     convo = Conversation.objects.create(type='group_chat')
-    new_group = Group.objects.create(monitor=user, groupname=groupname, convo=convo)
+    new_group = Group.objects.create(monitor=user, groupname=groupname)
     for i in members:
         new_group.members.add(i)
     new_group.members.add(user)
@@ -345,7 +347,6 @@ def withdraw_group(req: HttpRequest):
                 group.delete()
     elif group.managers.contains(user):
         group.managers.remove(user)
-    group.convo.members.remove(user)
     group.save()
 
     return request_success({
@@ -424,8 +425,6 @@ def remove_member(req: HttpRequest):
     else:
         return request_failed(1, "You are not allowed to kick anyone out of group")
     
-    group.convo.members.remove(target)
-    
     return request_success({
         "code": 0,
         "info": "Succeed"
@@ -492,11 +491,11 @@ def get_invitation(req: HttpRequest):
     group = Group.objects.get(groupid=groupid)
     
     if group.monitor == user or group.managers.contains(user):
-        invitations = Invitation.objects.filter(group=group)
+        # invitations = Invitation.objects.filter(group=group)
         return request_success({
             "code": 0,
             "info": "Succeed",
-            "invitations": [invitation.serialize() for invitation in invitations]
+            # "invitations": [invitation.serialize() for invitation in invitations]
         })
     else:
         return request_failed(1, "You are not allowed to get invitations")
@@ -511,7 +510,6 @@ def process_invitation(req: HttpRequest):
         target = invitation.receiver
         group = invitation.group
         group.members.add(target)
-        group.convo.members.add(target)
     
     invitation.delete()
     return request_success({
@@ -620,33 +618,33 @@ def messages(request: HttpRequest) -> HttpResponse:
 
 # @require_http_methods(["POST", "GET"])
 def conversations(request: HttpRequest) -> HttpResponse:
-    # if request.method == "POST":
-    #     data = json.loads(request.body)
-    #     conversation_type = data.get('type')
-    #     member_usernames = data.get('members', [])
+    if request.method == "POST":
+        data = json.loads(request.body)
+        conversation_type = data.get('type')
+        member_usernames = data.get('members', [])
 
-    #     # 检查用户名是否合法
-    #     members = []
-    #     for username in member_usernames:
-    #         user, _ = User.objects.get_or_create(username=username)
-    #         members.append(user)
+        # 检查用户名是否合法
+        members = []
+        for username in member_usernames:
+            user, _ = User.objects.get_or_create(username=username)
+            members.append(user)
 
-    #     if not members:
-    #         return JsonResponse({'error': f'Invalid member count'}, status=400)
+        if not members:
+            return JsonResponse({'error': f'Invalid member count'}, status=400)
         
-    #     if conversation_type == 'private_chat':
-    #         if len(members) != 2:
-    #             return JsonResponse({'error': f'Invalid member count'}, status=400)
-    #         # 检查是否已存在私人聊天
-    #         existing_conversations = Conversation.objects.filter(members__in=members, type='private_chat').prefetch_related('members').distinct()
-    #         for conv in existing_conversations:
-    #             if conv.members.count() == 2 and set(conv.members.all()) == set(members):
-    #                 # 找到了一个已存在的私人聊天，直接返回
-    #                 return JsonResponse(format_conversation(conv), status=200)
+        if conversation_type == 'private_chat':
+            if len(members) != 2:
+                return JsonResponse({'error': f'Invalid member count'}, status=400)
+            # 检查是否已存在私人聊天
+            existing_conversations = Conversation.objects.filter(members__in=members, type='private_chat').prefetch_related('members').distinct()
+            for conv in existing_conversations:
+                if conv.members.count() == 2 and set(conv.members.all()) == set(members):
+                    # 找到了一个已存在的私人聊天，直接返回
+                    return JsonResponse(format_conversation(conv), status=200)
 
-    #     conversation = Conversation.objects.create(type=conversation_type)
-    #     conversation.members.set(members)
-    #     return JsonResponse(format_conversation(conversation), status=200)
+        conversation = Conversation.objects.create(type=conversation_type)
+        conversation.members.set(members)
+        return JsonResponse(format_conversation(conversation), status=200)
 
     if request.method != "GET":
         return BAD_METHOD
@@ -686,6 +684,7 @@ def format_message(message: Message) -> dict:
         'id': message.id,
         'conversation': message.conversation.id,
         'sender': message.sender.username,
+        'receivers': [user.username for user in message.receivers.all()],
         'content': message.content,
         'timestamp': to_timestamp(message.timestamp)
     }
