@@ -491,11 +491,11 @@ def get_invitation(req: HttpRequest):
     group = Group.objects.get(groupid=groupid)
     
     if group.monitor == user or group.managers.contains(user):
-        # invitations = Invitation.objects.filter(group=group)
+        invitations = Invitation.objects.filter(group=group)
         return request_success({
             "code": 0,
             "info": "Succeed",
-            # "invitations": [invitation.serialize() for invitation in invitations]
+            "invitations": [invitation.serialize() for invitation in invitations]
         })
     else:
         return request_failed(1, "You are not allowed to get invitations")

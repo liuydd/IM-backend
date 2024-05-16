@@ -292,18 +292,17 @@ class BoardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
        
+    def test_get_invitation(self):
+        data = {'userid': 1, 'groupid': 1}
+        response = self.client.post('/group/invitation/get', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertEqual(response.json()['invitations'][0]['sender'],'Hentai')
 
-    # def test_get_invitation(self):
-    #     data = {'userid': 1, 'groupid': 1}
-    #     response = self.client.get('/group/invitation/get', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
-    #     self.assertEqual(response.status_code, 200)
-    #     self.assertEqual(response.json()['code'], 0)
-    #     self.assertEqual(response.json()['invitations'][0]['sender'],'Hentai')
-
-    # # def test_process_invitation(self):
-    #     self.assertFalse(Group.objects.filter(groupname='Dream Team').first().members.filter(userid=5).exists())
-    #     data = {'invitationid': 1,'response': 'Accept'}
-    #     response = self.client.post('/group/invitation/process', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
-    #     self.assertEqual(response.status_code, 200)
-    #     self.assertEqual(response.json()['code'], 0)
-    #     self.assertTrue(Group.objects.filter(groupname='Dream Team').first().members.filter(userid=5).exists())
+    def test_process_invitation(self):
+        self.assertFalse(Group.objects.filter(groupname='Dream Team').first().members.filter(userid=5).exists())
+        data = {'invitationid': 1,'response': 'Accept'}
+        response = self.client.post('/group/invitation/process', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertTrue(Group.objects.filter(groupname='Dream Team').first().members.filter(userid=5).exists())
