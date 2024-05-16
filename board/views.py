@@ -529,13 +529,11 @@ def delete_message(req: HttpRequest):
 def messages(request: HttpRequest) -> HttpResponse: 
     if request.method == "POST":
         data = json.loads(request.body)
-        conversation_id = data.get('conversation_id', '-1')
-        sender_userid = data.get('userid', '-1')
+        conversation_id = data.get('conversation_id')
+        # sender_userid = data.get('userid')
         content = data.get('content', '')
-        respond_target = data.get('target', '')
-        
-        conversation_id = int(conversation_id)
-        sender_userid = int(sender_userid)
+        # respond_target = data.get('target', '')
+        sender_username = data.get('username')
 
         # 验证 conversation_id 和 sender_username 的合法性
         try:
@@ -544,7 +542,8 @@ def messages(request: HttpRequest) -> HttpResponse:
             return JsonResponse({'error': 'Invalid conversation ID'}, status=400)
 
         try:
-            sender = User.objects.get(userid=sender_userid)
+            # sender = User.objects.get(userid=sender_userid)
+            sender = User.objects.get(username=sender_username)
         except User.DoesNotExist:
             return JsonResponse({'error': 'Invalid userid'}, status=400)
 
@@ -560,11 +559,11 @@ def messages(request: HttpRequest) -> HttpResponse:
 
         message.receivers.set(conversation.members.all())
         
-        if respond_target:
-            target = Message.objects.get(id=int(respond_target))
-            message.reply_to_id = int(respond_target)
-            target.response_count += 1
-            target.save()
+        # if respond_target:
+        #     target = Message.objects.get(id=int(respond_target))
+        #     message.reply_to_id = int(respond_target)
+        #     target.response_count += 1
+        #     target.save()
 
         channel_layer = get_channel_layer()
         for member in conversation.members.all():
@@ -573,8 +572,9 @@ def messages(request: HttpRequest) -> HttpResponse:
         return JsonResponse(format_message(message), status=200)
 
     elif request.method == "GET":
-        userid: str = request.GET.get('userid')
-        conversation_id: str = request.GET.get('conversationId')
+        # userid: str = request.GET.get('userid')
+        username: str = request.GET.get('username')
+        conversation_id: str = request.GET.get('conversation_id')
         after: str = request.GET.get('after', '0')
         after_datetime = datetime.fromtimestamp((int(after) + 1) / 1000.0, tz=timezone.utc)
         limit: int = int(request.GET.get('limit', '100'))
@@ -582,10 +582,16 @@ def messages(request: HttpRequest) -> HttpResponse:
         messages_query = Message.objects.filter(timestamp__gte=after_datetime).order_by('timestamp')
         messages_query = messages_query.prefetch_related('conversation')
 
-        if userid:
+        # if userid:
+        #     try:
+        #         userid = int(userid)
+        #         user = User.objects.get(userid=userid)
+        #         messages_query = messages_query.filter(receivers=user)
+        #     except User.DoesNotExist:
+        #         return JsonResponse({'messages': [], 'has_next': False}, status=200)
+        if username:
             try:
-                userid = int(userid)
-                user = User.objects.get(userid=userid)
+                user = User.objects.get(username=username)
                 messages_query = messages_query.filter(receivers=user)
             except User.DoesNotExist:
                 return JsonResponse({'messages': [], 'has_next': False}, status=200)
@@ -685,13 +691,13 @@ def format_message(message: Message) -> dict:
         'id': message.id,
         'conversation': message.conversation.id,
         'sender': message.sender.username,
-        'receivers': [user.username for user in message.receivers.all()],
+        # 'receivers': [user.username for user in message.receivers.all()],
         'content': message.content,
         'timestamp': to_timestamp(message.timestamp),
-        'responseCount': message.response_count,
-        'isRead': bool(len(message.already_read) == 2),
-        'readBy': [user.username for user in message.already_read.all()],
-        'conversationType': message.conversation.type,
+        # 'responseCount': message.response_count,
+        # 'isRead': bool(len(message.already_read) == 2),
+        # 'readBy': [user.username for user in message.already_read.all()],
+        # 'conversationType': message.conversation.type,
     }
     if message.reply_to_id:
         ret['reply_to'] = message.reply_to_id
