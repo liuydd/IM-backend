@@ -529,7 +529,7 @@ def delete_message(req: HttpRequest):
 def messages(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         data = json.loads(request.body)
-        conversation_id = data.get('conversationId')
+        conversation_id = data.get('conversation_id')
         sender_userid = data.get('userid')
         content = data.get('content', '')
         respond_target = data.get('target', '')
