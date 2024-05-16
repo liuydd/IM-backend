@@ -519,13 +519,17 @@ def process_invitation(req: HttpRequest):
         "info": "Succeed"
     })
     
-# def delete_message(req: HttpRequest):
-#     if req.method != "DELETE":
-#         return BAD_METHOD
-#     body = json.loads(req.body.decode("utf-8"))
-#     user = User.objects.get(userid=body["userid"])
-#     message = Message.objects.get(id=body["messageid"])
-#     message.
+def delete_message(req: HttpRequest):
+    if req.method != "DELETE":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(userid=body["userid"])
+    message = Message.objects.get(id=body["messageid"])
+    message.receivers.remove(user)
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
 
 # Create your views here.
 @require_http_methods(["POST", "GET"])
