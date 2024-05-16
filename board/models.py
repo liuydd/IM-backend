@@ -52,23 +52,25 @@ class Friendship(models.Model):
             "friendid": self.friend.userid,
             "labels": list(self.labels.values_list('labelname', flat=True))
         }
-    
 
-class PrivateChat(models.Model):
-    user1 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="private_chat_1")
-    user2 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="private_chat_2")
-    messages = models.ManyToManyField('Message', blank=True)
+class Conversation(models.Model):
+    TYPE_CHOICES = [
+        ('private_chat', 'Private Chat'),
+        ('group_chat', 'Group Chat'),
+    ]
+    type = models.CharField(max_length=12, choices=TYPE_CHOICES)
+    members = models.ManyToManyField(User, related_name='conversations')
 
-    
 class Message(models.Model):
-    msgid = models.BigAutoField(primary_key=True)
-    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="sent_messages")
-    receiver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="received_messages")
-    private_chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="private_messages")
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE, null=True, blank=True)
+    sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
+    receivers = models.ManyToManyField(User, related_name='received_messages')
+    already_read = models.ManyToManyField(User, related_name='read_messages')
     content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+    response_count = models.IntegerField(default=0)
+    reply_to_id = models.ForeignKey(int, blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    
 class Group(models.Model):
     groupid = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
