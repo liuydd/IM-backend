@@ -13,3 +13,4 @@ djangorestframework
 pyjwt
 channels
 daphne==4.1.0
+"uvicorn[standard]"
