@@ -69,7 +69,7 @@ class Message(models.Model):
     already_read = models.ManyToManyField(User, related_name='read_messages')
     content = models.TextField()
     response_count = models.IntegerField(default=0)
-    reply_to_id = models.ForeignKey(int, on_delete=models.SET_NULL, Eblank=True, null=True)
+    reply_to_id = models.IntegerField(blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
 class Group(models.Model):
