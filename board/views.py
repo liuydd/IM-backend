@@ -523,6 +523,7 @@ def messages(request: HttpRequest) -> HttpResponse:
         conversation_id = data.get('conversation_id')
         sender_userid = data.get('userid')
         content = data.get('content', '')
+        respond_target = data.get('target', '')
 
         # 验证 conversation_id 和 sender_username 的合法性
         try:
@@ -546,6 +547,12 @@ def messages(request: HttpRequest) -> HttpResponse:
         )
 
         message.receivers.set(conversation.members.all())
+        
+        if respond_target:
+            target = Message.objects.get(id=int(respond_target))
+            message.reply_to_id = int(respond_target)
+            target.response_count += 1
+            target.save()
 
         channel_layer = get_channel_layer()
         for member in conversation.members.all():
@@ -588,6 +595,10 @@ def messages(request: HttpRequest) -> HttpResponse:
         if len(messages_data) > limit:
             has_next = True
             messages_data = messages_data[:limit]
+            
+        for message in messages:
+            if not message.already_read.contains(user):
+                message.already_read.add(user)
 
         return JsonResponse({'messages': messages_data, 'has_next': has_next}, status=200)
 
@@ -628,6 +639,28 @@ def conversations(request: HttpRequest) -> HttpResponse:
     response_data = [format_conversation(conv) for conv in valid_conversations]
     return JsonResponse({'conversations': response_data}, status=200)
 
+
+def filter_messages(req: HttpRequest):
+    if req.method != "GET":
+        return BAD_METHOD
+    
+    userid = req.GET.get('userid')
+    user = User.objects.get(id=userid)
+    conversation_id = req.GET.get('conversation_id')
+    convo = Conversation.objects.get(id=conversation_id)
+    if user not in convo.members.all():
+        return JsonResponse({'error': 'User is not a member of the conversation'}, status=403)
+    
+    sender = req.GET.get('senderid', '')
+    start_time = int(req.GET.get('start', 0))
+    end_time = int(req.GET.get('end', to_timestamp(datetime.now())))
+    
+    messages = Message.objects.filter(conversation=convo, timestamp__range=(start_time, end_time))
+    if sender:
+        messages = messages.filter(sender=sender)
+    return JsonResponse({'messages': [format_message(m) for m in messages]}, status=200)
+    
+    
 # @require_http_methods(["POST"])
 # def join_conversation(request: HttpRequest, conversation_id: int) -> HttpResponse:
 #     data = json.loads(request.body)
@@ -679,13 +712,16 @@ def to_timestamp(dt: datetime) -> int:
     return int(dt.timestamp() * 1_000)
 
 def format_message(message: Message) -> dict:
-    return {
+    ret = {
         'id': message.id,
         'conversation': message.conversation.id,
         'sender': message.sender.username,
         'content': message.content,
         'timestamp': to_timestamp(message.timestamp)
     }
+    if message.reply_to_id:
+        ret['reply_to'] = message.reply_to_id
+    return ret
 
 def format_conversation(conversation: Conversation) -> dict:
     return {
