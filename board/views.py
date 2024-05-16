@@ -246,8 +246,6 @@ def respond_friend_request(req: HttpRequest):
         friend_request.save()
         Friendship.objects.create(user=user, friend=friend)
         Friendship.objects.create(user=friend, friend=user)
-        convo = Conversation.objects.create(type='private_chat')
-        convo.members.add(user, friend)
         return request_success({
             "code": 0,
             "info": "Succeed"
@@ -289,13 +287,10 @@ def create_group(req: HttpRequest):
     user = User.objects.get(userid=body["userid"])
     members = [User.objects.get(userid=i) for i in body["members"]]
     groupname = ", ".join([member.username for member in members])
-    convo = Conversation.objects.create(type='group_chat')
     new_group = Group.objects.create(monitor=user, groupname=groupname)
     for i in members:
         new_group.members.add(i)
     new_group.members.add(user)
-    for m in members:
-        convo.members.add(m)
     return request_success({
         "code": 0, 
         "info": "Group created successfully"
@@ -626,9 +621,11 @@ def conversations(request: HttpRequest) -> HttpResponse:
         # 检查用户名是否合法
         members = []
         for username in member_usernames:
-            user, _ = User.objects.get_or_create(username=username)
-            members.append(user)
-
+            try:
+                members.append(User.objects.get(username=username))
+            except User.DoesNotExist:
+                return JsonResponse({'error': f'Invalid username: {username}'}, status=400)
+            
         if not members:
             return JsonResponse({'error': f'Invalid member count'}, status=400)
         
@@ -648,6 +645,7 @@ def conversations(request: HttpRequest) -> HttpResponse:
 
     if request.method != "GET":
         return BAD_METHOD
+    
     conversation_ids = request.GET.getlist('id', [])
     valid_conversations = Conversation.objects.filter(id__in=conversation_ids).prefetch_related('members')
     response_data = [format_conversation(conv) for conv in valid_conversations]
@@ -696,5 +694,5 @@ def format_conversation(conversation: Conversation) -> dict:
     return {
         'id': conversation.id,
         'type': conversation.type,
-        'members': [{'userid': user.userid, 'username': user.username} for user in conversation.members.all()],
+        'members': [user.username for user in conversation.members.all()],
     }
