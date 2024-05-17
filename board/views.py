@@ -528,7 +528,7 @@ def delete_message(req: HttpRequest):
 @require_http_methods(["DELETE", "POST", "GET"])
 def messages(request: HttpRequest) -> HttpResponse: 
     if request.method == "DELETE":
-        data = json.loads(request.body)
+        data = json.loads(request.data)
         message_id = data.get('message_id')
         username = data.get('username')
         m = Message.objects.get(id=message_id)
