@@ -533,7 +533,7 @@ def messages(request: HttpRequest) -> HttpResponse:
         username = data.get('username')
         m = Message.objects.get(id=message_id)
         m.receivers.remove(User.objects.get(username=username))
-        return request_success("code": 0, "info": "Succeed")
+        return request_success({"code": 0, "info": "Succeed"})
         
     elif request.method == "POST":
         data = json.loads(request.body)
