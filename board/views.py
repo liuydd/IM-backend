@@ -525,9 +525,17 @@ def delete_message(req: HttpRequest):
     })
 
 # Create your views here.
-@require_http_methods(["POST", "GET"])
+@require_http_methods(["DELETE", "POST", "GET"])
 def messages(request: HttpRequest) -> HttpResponse: 
-    if request.method == "POST":
+    if request.method == "DELETE":
+        data = json.loads(request.body)
+        message_id = data.get('message_id')
+        username = data.get('username')
+        m = Message.objects.get(id=message_id)
+        m.receivers.remove(User.objects.get(username=username))
+        return request_success("code": 0, "info": "Succeed")
+        
+    elif request.method == "POST":
         data = json.loads(request.body)
         conversation_id = data.get('conversation_id')
         # sender_userid = data.get('userid')
