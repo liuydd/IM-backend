@@ -680,12 +680,13 @@ def filter_messages(req: HttpRequest):
     if user not in convo.members.all():
         return JsonResponse({'error': 'User is not a member of the conversation'}, status=403)
     
-    sender = req.GET.get('senderid', '')
+    sender = req.GET.get('sendername', '')
     start_time = int(req.GET.get('start', 0))
     end_time = int(req.GET.get('end', to_timestamp(datetime.now())))
     
     messages = Message.objects.filter(conversation=convo, timestamp__range=(start_time, end_time))
     if sender:
+        sender = User.objects.get(username=sender)
         messages = messages.filter(sender=sender)
     return JsonResponse({'messages': [format_message(m) for m in messages]}, status=200)
     
