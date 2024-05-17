@@ -2,7 +2,7 @@ import re
 import json
 from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
+# from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from rest_framework.decorators import api_view # login_required
 from rest_framework.response import Response
