@@ -673,8 +673,9 @@ def filter_messages(req: HttpRequest):
     if req.method != "GET":
         return BAD_METHOD
     
-    userid = int(req.GET.get('userid'))
-    user = User.objects.get(userid=userid)
+    # userid = int(req.GET.get('userid'))
+    username = req.GET.get('username')
+    user = User.objects.get(username=username)
     conversation_id = int(req.GET.get('conversationId'))
     convo = Conversation.objects.get(id=conversation_id)
     if user not in convo.members.all():
