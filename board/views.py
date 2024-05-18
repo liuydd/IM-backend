@@ -528,9 +528,11 @@ def delete_message(req: HttpRequest):
 @require_http_methods(["DELETE", "POST", "GET"])
 def messages(request: HttpRequest) -> HttpResponse: 
     if request.method == "DELETE":
-        data = json.loads(request.data)
-        message_id = data.get('message_id')
-        username = data.get('username')
+        # data = json.loads(request.data)
+        # message_id = data.get('message_id')
+        # username = data.get('username')
+        message_id = request.GET.get('message_id')
+        username = request.GET.get('username')
         m = Message.objects.get(id=message_id)
         m.receivers.remove(User.objects.get(username=username))
         return request_success({"code": 0, "info": "Succeed"})
@@ -698,7 +700,7 @@ def filter_messages(req: HttpRequest):
             else:
                 ret.append(message)
     
-    ret = [{'id': m.id, 'conversation': m.conversation.id, 'content': m.content, 'timestamp': str(m.timestamp), 'sender': m.sender.username} for m in ret]
+    ret = [{'id': m.id, 'conversation': m.conversation.id, 'content': m.content, 'timestamp': to_timestamp(m.timestamp), 'sender': m.sender.username} for m in ret]
     return JsonResponse({'messages': ret, 'code': 0, 'info': 'Success'}, status=200)
     
 def to_timestamp(dt: datetime) -> int:
