@@ -697,7 +697,7 @@ def filter_messages(req: HttpRequest):
                     ret.append(format_message(message))
             else:
                 ret.append(format_message(message))
-    return JsonResponse({'messages': ret}, status=200)
+    return JsonResponse({'messages': ret, 'code': 0, 'info': 'Success'}, status=200)
     
     
 def to_timestamp(dt: datetime) -> int:
