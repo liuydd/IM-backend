@@ -13,6 +13,7 @@ class User(models.Model):
     created_time = models.FloatField(default=utils_time.get_timestamp)
     email = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
     phone_number = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
+    avatar = models.CharField(max_length=MAX_CHAR_LENGTH,default='faye')
     
     class Meta:
         indexes = [models.Index(fields=["username"])]
@@ -22,7 +23,8 @@ class User(models.Model):
             "userid": self.userid, 
             "username": self.username,
             "email": self.email,
-            "phoneNumber": self.phone_number
+            "phoneNumber": self.phone_number,
+            "avatar": self.avatar
         }
     
     
@@ -30,6 +32,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     friends = models.ManyToManyField(User, blank=True, related_name="friend")
     groups = models.ManyToManyField('Group', blank=True)
+    avatar = models.CharField(max_length=MAX_CHAR_LENGTH, default='faye')
     
     
 class Label(models.Model):
