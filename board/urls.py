@@ -26,6 +26,7 @@ urlpatterns = [
     path('group/invitation/send', views.send_invitation),
     path('group/invitation/process', views.process_invitation),
     path('group/invitation/get', views.get_invitation),
+    path('messages/read', views.read_message),
     path('messages/filter', views.filter_messages),
     path('messages', views.messages),
     path('conversations', views.conversations)
