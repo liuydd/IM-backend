@@ -776,6 +776,7 @@ def format_message(message: Message) -> dict:
         'responseCount': message.response_count,
         # 'isRead': bool(len(message.already_read) == 2),
         'readBy': [user.username for user in message.already_read.all()],
+        'avatar': message.sender.avatar,
         # 'conversationType': message.conversation.type,
     }
     if message.reply_to_id:
