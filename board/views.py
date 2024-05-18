@@ -582,7 +582,8 @@ def messages(request: HttpRequest) -> HttpResponse:
         )
 
         message.receivers.set(conversation.members.all())
-        
+        message.already_read.add(sender)
+        message.save()
         # if respond_target:
         #     target = Message.objects.get(id=int(respond_target))
         #     message.reply_to_id = int(respond_target)
@@ -714,8 +715,21 @@ def filter_messages(req: HttpRequest):
             else:
                 ret.append(message)
     
-    ret = [{'id': m.id, 'conversation': m.conversation.id, 'content': m.content, 'timestamp': to_timestamp(m.timestamp), 'sender': m.sender.username} for m in ret]
+    ret = [format_message(m) for m in ret]
     return JsonResponse({'messages': ret, 'code': 0, 'info': 'Success'}, status=200)
+
+def read_message(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    data = json.loads(req.body)
+    username = data.get('username')
+    convoid = data.get('conversationId')
+    convo = Conversation.objects.get(id=convoid)
+    messages = Message.objects.filter(conversation=convo)
+    for m in messages:
+        m.already_read.add(User.objects.get(username=username))
+        m.save()
+    return JsonResponse({'code': 0, 'info': 'Success'}, status=200)
     
 def to_timestamp(dt: datetime) -> int:
     # 转换为毫秒级 UNIX 时间戳
@@ -731,7 +745,7 @@ def format_message(message: Message) -> dict:
         'timestamp': to_timestamp(message.timestamp),
         # 'responseCount': message.response_count,
         # 'isRead': bool(len(message.already_read) == 2),
-        # 'readBy': [user.username for user in message.already_read.all()],
+        'readBy': [user.username for user in message.already_read.all()],
         # 'conversationType': message.conversation.type,
     }
     if message.reply_to_id:
