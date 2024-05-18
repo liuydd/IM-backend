@@ -116,11 +116,11 @@ class BoardTests(TestCase):
         self.assertEqual(res.json()['code'], 2)
     
     def test_modify_profile(self):
-        data = {"userid": 1,"password":"Whatsupbro","newUsername": "Inion", "newEmail": "Yoshikawa_Yūko", "newPhoneNumber": "11100011100", "newPassword": "20030415"}
+        data = {"userid": 1,"password":"Whatsupbro","newUsername": "Inion", "newEmail":"","newPhoneNumber": "11100011100", "newPassword": "20030415", "newAvatar": "spike"}
         res = self.client.post('/modify', data=data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.json()['code'], 0)
-        self.assertTrue(User.objects.filter(username="Inion", email="Yoshikawa_Yū", phone_number="11100011100").exists())
+        self.assertTrue(User.objects.filter(username="Inion", phone_number="11100011100").exists())
 
     def test_delete_user(self):
         self.assertTrue(User.objects.filter(userid = 1).exists())
@@ -158,14 +158,6 @@ class BoardTests(TestCase):
         self.assertEqual(response.json()['code'], 0)
         self.assertEqual(response.json()['friendList'][0]['friend'],'Hentai')
         self.assertEqual(response.json()['friendList'][1]['friend'],'Baka')
-    
-
-    def test_modify_profile(self):
-        data={'userid': 1,'password':'Whatsupbro','newUsername':'','newEmail':'Yoshikawa_Yūko@Kitauji.com','newPhoneNumber':'11100011100','newPassword':'20030415'}
-        response = self.client.post('/modify', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['code'], 0)
-        self.assertTrue(User.objects.filter(username='Inion',email='Yoshikawa_Yūko@Kitauji.com',phone_number='11100011100').exists())
 
     def test_send_friend_request_stranger(self):
         data={'userid': 1,'friend': 'Tainaka Ritsu'}

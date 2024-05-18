@@ -180,7 +180,6 @@ def modify_profile(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
     password = body["password"]
-    
     if user.password != password:
         return request_failed(1, "Wrong password", status_code=404)
     
@@ -192,9 +191,11 @@ def modify_profile(req: HttpRequest):
         user.email = body["newEmail"]
     if body["newPhoneNumber"]:
         user.phone_number = body["newPhoneNumber"]
+    if body["newAvatar"]:
+        user.avatar = body["newAvatar"]
     
     user.save()
-    
+
     return request_success({
         "code": 0,
         "info": "Succeed"
