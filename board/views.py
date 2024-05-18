@@ -694,11 +694,12 @@ def filter_messages(req: HttpRequest):
         if to_timestamp(t) >= start_time and to_timestamp(t) <= end_time:
             if sender:
                 if message.sender.username == sender:
-                    ret.append(format_message(message))
+                    ret.append(message)
             else:
-                ret.append(format_message(message))
-    return JsonResponse({'messages': ret, 'code': 0, 'info': 'Success'}, status=200)
+                ret.append(message)
     
+    ret = [{'id': m.id, 'conversation': m.conversation.id, 'content': m.content, 'timestamp': str(m.timestamp), 'sender': m.sender.username} for m in ret]
+    return JsonResponse({'messages': ret, 'code': 0, 'info': 'Success'}, status=200)
     
 def to_timestamp(dt: datetime) -> int:
     # 转换为毫秒级 UNIX 时间戳
