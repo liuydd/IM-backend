@@ -670,6 +670,8 @@ def conversations(request: HttpRequest) -> HttpResponse:
 
         # 检查用户名是否合法
         members = []
+        if len(member_usernames) == 2 and member_usernames[0] == member_usernames[1]:
+            return JsonResponse({'error': 'You cannot start a private chat with yourself'}, status=400)
         for username in member_usernames:
             try:
                 members.append(User.objects.get(username=username))
