@@ -734,6 +734,15 @@ def filter_messages(req: HttpRequest):
     ret = [format_message(m) for m in ret]
     return JsonResponse({'messages': ret, 'code': 0, 'info': 'Success'}, status=200)
 
+def detailed_info(req: HttpRequest):
+    if req.method != "GET":
+        return BAD_METHOD
+    messageid = int(req.GET.get('message_id'))
+    message = Message.objects.get(id=messageid)
+    ret = {'readBy': [user.username for user in message.already_read.all()], 
+            'responseCount': message.response_count}
+    return request_success(ret)
+
 def read_message(req: HttpRequest):
     if req.method != "POST":
         return BAD_METHOD

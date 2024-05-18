@@ -28,6 +28,7 @@ urlpatterns = [
     path('group/invitation/get', views.get_invitation),
     path('messages/read', views.read_message),
     path('messages/filter', views.filter_messages),
+    path('messages/detail', views.detailed_info),
     path('messages', views.messages),
     path('conversations', views.conversations)
 ]
