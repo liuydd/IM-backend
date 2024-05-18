@@ -685,12 +685,18 @@ def filter_messages(req: HttpRequest):
     start_time = int(req.GET.get('start', 0))
     end_time = int(req.GET.get('end', to_timestamp(datetime.now())))
     
-    messages = Message.objects.filter(conversation=convo, timestamp__range=(start_time, end_time))
-    if sender:
-        sender = User.objects.get(username=sender)
-        messages = messages.filter(sender=sender)
-    return JsonResponse({'messages': [format_message(m) for m in messages]}, status=200)
-    
+    messages = Message.objects.filter(conversation=convo)
+    ret = []
+    for message in messages:
+        t: datetime = message.timestamp
+        t = to_timestamp(t)
+        if t >= start_time and t <= end_time:
+            if sender:
+                if message.sender.username == sender:
+                    ret.append(format_message(message))
+            else:
+                ret.append(format_message(message))
+    return JsonResponse({'messages': ret}, status=200)
     
 def to_timestamp(dt: datetime) -> int:
     # 转换为毫秒级 UNIX 时间戳
