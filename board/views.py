@@ -556,7 +556,7 @@ def messages(request: HttpRequest) -> HttpResponse:
         conversation_id = data.get('conversation_id')
         # sender_userid = data.get('userid')
         content = data.get('content', '')
-        # respond_target = data.get('target', '')
+        respond_target = data.get('target', '')
         sender_username = data.get('username')
 
         # 验证 conversation_id 和 sender_username 的合法性
@@ -574,21 +574,29 @@ def messages(request: HttpRequest) -> HttpResponse:
         # 验证 sender 是否是 conversation 的成员
         if not conversation.members.contains(sender):
             return JsonResponse({'error': 'Sender is not a member of the conversation'}, status=403)
-
-        message = Message.objects.create(
-            conversation=conversation,
-            sender=sender,
-            content=content
-        )
-
+        if respond_target:
+            message = Message.objects.create(
+                conversation=conversation,
+                sender=sender,
+                content=content,
+                reply_to_id=respond_target,
+            )
+        else:
+            message = Message.objects.create(
+                conversation=conversation,
+                sender=sender,
+                content=content,
+                # reply_to_id=respond_target,
+            )
+        # print(respond_target)
         message.receivers.set(conversation.members.all())
         
-        # if respond_target:
-        #     target = Message.objects.get(id=int(respond_target))
-        #     message.reply_to_id = int(respond_target)
-        #     target.response_count += 1
-        #     target.save()
-
+        if respond_target:
+            target = Message.objects.get(id=int(respond_target))
+            message.reply_to_id = int(respond_target)
+            target.response_count += 1
+            target.save()
+        # print(target.response_count)
         channel_layer = get_channel_layer()
         for member in conversation.members.all():
             async_to_sync(channel_layer.group_send)(member.username, {'type': 'notify'})
@@ -729,7 +737,8 @@ def format_message(message: Message) -> dict:
         # 'receivers': [user.username for user in message.receivers.all()],
         'content': message.content,
         'timestamp': to_timestamp(message.timestamp),
-        # 'responseCount': message.response_count,
+        # 'reply_to_id': message.reply_to_id,
+        'responseCount': message.response_count,
         # 'isRead': bool(len(message.already_read) == 2),
         # 'readBy': [user.username for user in message.already_read.all()],
         # 'conversationType': message.conversation.type,
