@@ -58,7 +58,20 @@ def register(req: HttpRequest):
         
         return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username), "userid": user.userid})
 
-
+def check_password(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    userid = body["userid"]
+    password = body["password"]
+    password = require(body, "password", "string", err_msg="Missing or error type of [password]")
+    
+    user = User.objects.filter(userid = userid, password=password).first()
+    if user:
+        return request_success({"code": 0, "info": "Succeed"})
+    else:
+        return request_failed(2, "Invalid username or password", 401)
+    
 @CheckRequire
 @api_view(["POST"])
 def user_login(req: HttpRequest):

@@ -95,6 +95,12 @@ class BoardTests(TestCase):
         self.assertEqual(res.json()['code'], 2)
         self.assertFalse(User.objects.filter(username="newuser2").exists())
 
+    def test_check_password_correct(self):
+        data = {"userid": 1, "password": "Whatsupbro"}
+        res = self.client.post('/checkPassword', data=data, content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()['code'], 0)
+
     def test_login_existing_user_correct_password(self):
         self.assertTrue(User.objects.filter(username="Inion").exists())
         data = {"username": "Inion", "password": "Whatsupbro"}
