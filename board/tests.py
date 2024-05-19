@@ -71,10 +71,20 @@ class BoardTests(TestCase):
         self.conversation.members.add(self.user)
         self.conversation.members.add(self.friend1)
 
+        self.groupconvo = Conversation.objects.create(type='group_chat')
+        self.groupconvo.members.add(self.user)
+        self.groupconvo.members.add(self.friend1)
+        self.groupconvo.members.add(self.friend2)
+
         #Message
         self.message = Message.objects.create(content='Hello',sender=self.user,conversation=self.conversation)
         self.message.receivers.add(self.user)
         self.message.receivers.add(self.friend1)
+
+        self.message2 = Message.objects.create(content='Bye',sender=self.user,conversation=self.groupconvo)
+        self.message2.receivers.add(self.user)
+        self.message2.receivers.add(self.friend2)
+        self.message2.already_read.add(self.user)
 
     #Tests:
     def test_register_new_user(self):
@@ -334,3 +344,33 @@ class BoardTests(TestCase):
         response = self.client.post('/conversations', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
         self.assertEqual(response.status_code, 200)
         self.assertTrue('Inion' in response.json()['members'])
+
+    def test_filter_messages(self):
+        data = {'username': 'Inion','conversationId':1,'sendername':'Inion','receivername':'Hentai','start':0,'end':9999999999999}
+        response = self.client.get('/messages/filter', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['messages'][0]['content'],'Hello')
+    
+    def test_join_conversation(self):
+        data = {'username': 'Tainaka Ritsu','conversation_id':2}
+        response = self.client.post('/conversations/2/join', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Conversation.objects.filter(id=2).first().members.filter(username='Tainaka Ritsu').exists())
+
+    def test_leave_conversation(self):
+        data = {'username': 'Inion','conversation_id':2}
+        response = self.client.post('/conversations/2/leave', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Conversation.objects.filter(id=2).first().members.filter(username='Inion').exists())
+    
+    def test_read_message(self):
+        data = {'username': 'Inion','conversationId':1}
+        response = self.client.post('/messages/read', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Message.objects.filter(id=1).first().already_read.filter(username='Inion').exists())
+
+    def test_detailed_info(self):
+        data = {'message_id': 2}
+        response = self.client.get('/messages/detail', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('Inion' in response.json()['readBy'])

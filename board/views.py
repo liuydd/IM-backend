@@ -739,8 +739,6 @@ def filter_messages(req: HttpRequest):
     sender = req.GET.get('sendername', '')
     start_time = int(req.GET.get('start', 0))
     end_time = int(req.GET.get('end', to_timestamp(datetime.now())))
-    start_time = int(req.GET.get('start', 0))
-    end_time = int(req.GET.get('end', to_timestamp(datetime.now())))
     
     messages = Message.objects.filter(conversation=convo)
     ret = []
