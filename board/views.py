@@ -664,20 +664,25 @@ def conversations(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         data = json.loads(request.body)
         conversation_type = data.get('type')
-        member_usernames = data.get('members', [])
+        membernames_ = data.get('members', [])
 
-        # 检查用户名是否合法
+        membernames = []
+
+        for m in membernames_:
+            if m not in membernames:
+                membernames.append(m)
+
         members = []
-        for username in member_usernames:
+        for username in membernames:
             try:
                 members.append(User.objects.get(username=username))
             except User.DoesNotExist:
                 return JsonResponse({'error': f'Invalid username: {username}'}, status=400)
-            
-        if not members:
-            return JsonResponse({'error': f'Invalid member count'}, status=400)
-        
-        if conversation_type == 'private_chat':
+
+        if conversation_type == 'group_chat':
+            if len(membernames) < 3:
+                return JsonResponse({'error': f'Invalid member count'}, status=400)
+        else:
             if len(members) != 2:
                 return JsonResponse({'error': f'Invalid member count'}, status=400)
             # 检查是否已存在私人聊天
@@ -686,7 +691,6 @@ def conversations(request: HttpRequest) -> HttpResponse:
                 if conv.members.count() == 2 and set(conv.members.all()) == set(members):
                     # 找到了一个已存在的私人聊天，直接返回
                     return JsonResponse(format_conversation(conv), status=200)
-
         conversation = Conversation.objects.create(type=conversation_type)
         conversation.members.set(members)        
         return JsonResponse(format_conversation(conversation), status=200)
@@ -818,6 +822,7 @@ def format_message(message: Message) -> dict:
         'responseCount': message.response_count,
         # 'isRead': bool(len(message.already_read) == 2),
         'readBy': [user.username for user in message.already_read.all()],
+        'avatar': message.sender.avatar,
         # 'conversationType': message.conversation.type,
     }
     if message.reply_to_id:
