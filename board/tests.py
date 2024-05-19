@@ -71,6 +71,10 @@ class BoardTests(TestCase):
         self.conversation.members.add(self.user)
         self.conversation.members.add(self.friend1)
 
+        #Message
+        self.message = Message.objects.create(content='Hello',sender=self.user,conversation=self.conversation)
+        self.message.receivers.add(self.user)
+        self.message.receivers.add(self.friend1)
 
     #Tests:
     def test_register_new_user(self):
@@ -304,3 +308,29 @@ class BoardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['code'], 0)
         self.assertTrue(Group.objects.filter(groupname='Dream Team').first().members.filter(userid=5).exists())
+
+    def test_delete_message(self):
+        self.assertTrue(Message.objects.filter(content='Hello').first().receivers.contains(self.user))
+        data = {'message_id': 1, 'username': 'Inion'}
+        response = self.client.delete('/messages', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['code'], 0)
+        self.assertFalse(Message.objects.filter(content='Hello').first().receivers.contains(self.user))
+
+    def test_post_message(self):
+        data = {'username': 'Inion', 'content': 'Hello world', 'target':1,'conversation_id':1}
+        response = self.client.post('/messages', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Message.objects.filter(content='Hello world').exists())
+
+    def test_get_message(self):
+        data = {'username': 'Inion','conversation_id':1}
+        response = self.client.get('/messages', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['messages'][0]['content'],'Hello')
+
+    def test_conversations_post(self):
+        data = {'type': 'private_chat', 'members':['Inion','Baka']}
+        response = self.client.post('/conversations', data = data, content_type='application/json', HTTP_AUTHORIZATION=generate_jwt_token(1))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('Inion' in response.json()['members'])
