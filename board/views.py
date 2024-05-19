@@ -1,17 +1,24 @@
+import re
 import json
-from django.http import HttpRequest, HttpResponse
+from django.http import JsonResponse, HttpRequest, HttpResponse
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
+# from django.contrib.auth.models import User
 from django.shortcuts import render, redirect
 from rest_framework.decorators import api_view # login_required
 from rest_framework.response import Response
 
-from .models import User, Friendship, Label, FriendRequest, Group, Announcement, Invitation
+from .models import User, Friendship, Label, FriendRequest, Group, Announcement, Invitation, Message, Conversation
 from utils.utils_request import BAD_METHOD, request_failed, request_success, return_field
 from utils.utils_require import MAX_ANNOUNCEMENT_LENGTH, CheckRequire, require
 from utils.utils_format_check import validate_username, validate_password, validate_email, validate_phone_number
 from utils.utils_time import get_timestamp
 from utils.utils_jwt import generate_jwt_token, check_jwt_token
+
+from datetime import datetime, timezone
+from typing import Dict, Any
+from django.views.decorators.http import require_http_methods
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 
 @CheckRequire
@@ -51,7 +58,20 @@ def register(req: HttpRequest):
         
         return request_success({"code": 0, "info": "Succeed", "token": generate_jwt_token(username), "userid": user.userid})
 
-
+def check_password(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    userid = body["userid"]
+    password = body["password"]
+    password = require(body, "password", "string", err_msg="Missing or error type of [password]")
+    
+    user = User.objects.filter(userid = userid, password=password).first()
+    if user:
+        return request_success({"code": 0, "info": "Succeed"})
+    else:
+        return request_failed(2, "Invalid username or password", 401)
+    
 @CheckRequire
 @api_view(["POST"])
 def user_login(req: HttpRequest):
@@ -99,6 +119,9 @@ def delete_friend(req: HttpRequest):
         friendship.delete()
         friendship = Friendship.objects.get(user=friend, friend=user)
         friendship.delete()
+        members = [user, friend]
+        # convo = Conversation.objects.filter(members__in=members, type='private_chat').prefetch_related('members').distinct().first()
+        # convo.delete()
         return request_success({"code": 0, "info": "Success"})
     except:
         return request_failed(1, "Target user not in friend list", status_code=404)
@@ -170,19 +193,22 @@ def modify_profile(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
     password = body["password"]
-    
     if user.password != password:
         return request_failed(1, "Wrong password", status_code=404)
     
+    if body["newUsername"]:
+        user.username = body["newUsername"]
     if body["newPassword"]:
         user.password = body["newPassword"]
     if body["newEmail"]:
         user.email = body["newEmail"]
     if body["newPhoneNumber"]:
         user.phone_number = body["newPhoneNumber"]
+    if body["newAvatar"]:
+        user.avatar = body["newAvatar"]
     
     user.save()
-    
+
     return request_success({
         "code": 0,
         "info": "Succeed"
@@ -274,16 +300,30 @@ def create_group(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
     members = [User.objects.get(userid=i) for i in body["members"]]
+    if user not in members:
+        members.append(user)
     groupname = ", ".join([member.username for member in members])
     new_group = Group.objects.create(monitor=user, groupname=groupname)
     for i in members:
         new_group.members.add(i)
-    new_group.members.add(user)
     return request_success({
         "code": 0, 
-        "info": "Group created successfully"
+        "info": "Group created successfully",
+        "groupid": new_group.groupid
     })
-  
+
+def bind_group_convo(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    group = Group.objects.get(groupid=int(body["groupid"]))
+    convo_id = body["conversation_id"]
+    group.conversationid = convo_id
+    group.save()
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
     
 @CheckRequire
 def transfer_monitor(req: HttpRequest):
@@ -365,12 +405,18 @@ def assign_manager(req: HttpRequest):
 @CheckRequire
 def list_group(req: HttpRequest):
     user = User.objects.get(userid=req.GET["userid"])
+    member = user.member_of_group.all()
+    real = []
+    for group in member:
+        if group.monitor == user or group.managers.contains(user):
+            continue
+        real.append(group)
     return request_success({
         "code": 0,
         "info": "Group list retrieved successfully",
         "monitorGroup": [group.serialize() for group in user.monitor_group.all()],
         "manageGroup": [group.serialize() for group in user.manage_group.all()],
-        "memberOfGroup": [group.serialize() for group in user.member_of_group.all()]
+        "memberOfGroup": [group.serialize() for group in real]
     })
 
 
@@ -438,8 +484,6 @@ def post_announcement(req: HttpRequest):
         "code": 0,
         "info": "Succeed"
     })
-
-    
     
 def send_invitation(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
@@ -485,15 +529,326 @@ def process_invitation(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     response = body["response"]
     invitation = Invitation.objects.get(id=body["invitationid"])
+    tar = ''
     if response == "Accept":
         target = invitation.receiver
+        tar = target.username
         group = invitation.group
         group.members.add(target)
     
     invitation.delete()
     return request_success({
         "code": 0,
-        "info": "Succeed"
+        "info": "Succeed",
+        'target': tar
     })
     
+def delete_message(req: HttpRequest):
+    if req.method != "DELETE":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    user = User.objects.get(userid=body["userid"])
+    message = Message.objects.get(id=body["messageid"])
+    message.receivers.remove(user)
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
+
+# Create your views here.
+@require_http_methods(["DELETE", "POST", "GET"])
+def messages(request: HttpRequest) -> HttpResponse: 
+    if request.method == "DELETE":
+        # data = json.loads(request.data)
+        # message_id = data.get('message_id')
+        # username = data.get('username')
+        data=json.loads(request.body)
+        message_id = data.get('message_id')
+        username = data.get('username')
+        m = Message.objects.get(id=message_id)
+        m.receivers.remove(User.objects.get(username=username))
+        return request_success({"code": 0, "info": "Succeed"})
+        
+    elif request.method == "POST":
+        data = json.loads(request.body)
+        conversation_id = data.get('conversation_id')
+        # sender_userid = data.get('userid')
+        content = data.get('content', '')
+        respond_target = data.get('target', '')
+        sender_username = data.get('username')
+
+        # 验证 conversation_id 和 sender_username 的合法性
+        try:
+            conversation = Conversation.objects.prefetch_related('members').get(id=conversation_id) 
+        except Conversation.DoesNotExist:
+            return JsonResponse({'error': 'Invalid conversation ID'}, status=400)
+
+        try:
+            # sender = User.objects.get(userid=sender_userid)
+            sender = User.objects.get(username=sender_username)
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'Invalid userid'}, status=400)
+
+        # 验证 sender 是否是 conversation 的成员
+        if not conversation.members.contains(sender):
+            return JsonResponse({'error': 'Sender is not a member of the conversation'}, status=403)
+        if respond_target:
+            message = Message.objects.create(
+                conversation=conversation,
+                sender=sender,
+                content=content,
+                reply_to_id=respond_target,
+            )
+        else:
+            message = Message.objects.create(
+                conversation=conversation,
+                sender=sender,
+                content=content,
+                # reply_to_id=respond_target,
+            )
+        # print(respond_target)
+        message.receivers.set(conversation.members.all())
+        
+        message.already_read.add(sender)
+        message.save()
+        
+        if respond_target:
+            target = Message.objects.get(id=int(respond_target))
+            message.reply_to_id = int(respond_target)
+            target.response_count += 1
+            target.save()
+        # print(target.response_count)
+        # if respond_target:
+        #     target = Message.objects.get(id=int(respond_target))
+        #     message.reply_to_id = int(respond_target)
+        #     target.response_count += 1
+        #     target.save()
+
+        channel_layer = get_channel_layer()
+        for member in conversation.members.all():
+            async_to_sync(channel_layer.group_send)(member.username, {'type': 'notify'})
+
+        return JsonResponse(format_message(message), status=200)
+
+    elif request.method == "GET":
+        # userid: str = request.GET.get('userid')
+        username: str = request.GET.get('username')
+        conversation_id: str = request.GET.get('conversation_id')
+        after: str = request.GET.get('after', '0')
+        after_datetime = datetime.fromtimestamp((int(after) + 1) / 1000.0, tz=timezone.utc)
+        limit: int = int(request.GET.get('limit', '100'))
+
+        messages_query = Message.objects.filter(timestamp__gte=after_datetime).order_by('timestamp')
+        messages_query = messages_query.prefetch_related('conversation')
+
+        # if userid:
+        #     try:
+        #         userid = int(userid)
+        #         user = User.objects.get(userid=userid)
+        #         messages_query = messages_query.filter(receivers=user)
+        #     except User.DoesNotExist:
+        #         return JsonResponse({'messages': [], 'has_next': False}, status=200)
+        if username:
+            try:
+                user = User.objects.get(username=username)
+                messages_query = messages_query.filter(receivers=user)
+            except User.DoesNotExist:
+                return JsonResponse({'messages': [], 'has_next': False}, status=200)
+        elif conversation_id:
+            try:
+                conversation_id = int(conversation_id)
+                conversation = Conversation.objects.get(id=conversation_id)
+                messages_query = messages_query.filter(conversation=conversation)
+            except Conversation.DoesNotExist:
+                return JsonResponse({'messages': [], 'has_next': False}, status=200)
+        else:
+            return JsonResponse({'error': 'Either userid or conversation ID must be specified'}, status=400)
+        
+        messages = list(messages_query[:limit+1])
+        messages_data = [format_message(message) for message in messages]
+
+        # 检查是否还有更多消息
+        has_next = False
+        if len(messages_data) > limit:
+            has_next = True
+            messages_data = messages_data[:limit]
+            
+        for message in messages:
+            if not message.already_read.contains(user):
+                message.already_read.add(user)
+
+        return JsonResponse({'messages': messages_data, 'has_next': has_next}, status=200)
+
+# @require_http_methods(["POST", "GET"])
+def conversations(request: HttpRequest) -> HttpResponse:
+    if request.method == "POST":
+        data = json.loads(request.body)
+        conversation_type = data.get('type')
+        membernames_ = data.get('members', [])
+
+        membernames = []
+
+        for m in membernames_:
+            if m not in membernames:
+                membernames.append(m)
+
+        members = []
+        for username in membernames:
+            try:
+                members.append(User.objects.get(username=username))
+            except User.DoesNotExist:
+                return JsonResponse({'error': f'Invalid username: {username}'}, status=400)
+
+        if conversation_type == 'group_chat':
+            if len(membernames) < 3:
+                return JsonResponse({'error': f'Invalid member count'}, status=400)
+        else:
+            if len(members) != 2:
+                return JsonResponse({'error': f'Invalid member count'}, status=400)
+            # 检查是否已存在私人聊天
+            existing_conversations = Conversation.objects.filter(members__in=members, type='private_chat').prefetch_related('members').distinct()
+            for conv in existing_conversations:
+                if conv.members.count() == 2 and set(conv.members.all()) == set(members):
+                    # 找到了一个已存在的私人聊天，直接返回
+                    return JsonResponse(format_conversation(conv), status=200)
+        conversation = Conversation.objects.create(type=conversation_type)
+        conversation.members.set(members)
+        return JsonResponse(format_conversation(conversation), status=200)
+
+    if request.method != "GET":
+        return BAD_METHOD
     
+    conversation_ids = request.GET.getlist('id', [])
+    valid_conversations = Conversation.objects.filter(id__in=conversation_ids).prefetch_related('members')
+    response_data = [format_conversation(conv) for conv in valid_conversations]
+    return JsonResponse({'conversations': response_data, 'code': 0, 'info': 'Success'}, status=200)
+
+
+def filter_messages(req: HttpRequest):
+    if req.method != "GET":
+        return BAD_METHOD
+    
+    # userid = int(req.GET.get('userid'))
+    username = req.GET.get('username')
+    user = User.objects.get(username=username)
+    conversation_id = int(req.GET.get('conversationId'))
+    convo = Conversation.objects.get(id=conversation_id)
+    if user not in convo.members.all():
+        return JsonResponse({'error': 'User is not a member of the conversation'}, status=403)
+    
+    sender = req.GET.get('sendername', '')
+    start_time = int(req.GET.get('start', 0))
+    end_time = int(req.GET.get('end', to_timestamp(datetime.now())))
+    
+    messages = Message.objects.filter(conversation=convo)
+    ret = []
+    for message in messages:
+        t: datetime = message.timestamp
+        if to_timestamp(t) >= start_time and to_timestamp(t) <= end_time:
+            if sender:
+                if message.sender.username == sender:
+                    ret.append(message)
+            else:
+                ret.append(message)
+    
+    ret = [format_message(m) for m in ret]
+    return JsonResponse({'messages': ret, 'code': 0, 'info': 'Success'}, status=200)
+
+def detailed_info(req: HttpRequest):
+    if req.method != "GET":
+        return BAD_METHOD
+    messageid = int(req.GET.get('message_id'))
+    message = Message.objects.get(id=messageid)
+    ret = {'readBy': [user.username for user in message.already_read.all()], 
+            'responseCount': message.response_count}
+    return request_success(ret)
+
+def read_message(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    data = json.loads(req.body)
+    username = data.get('username')
+    convoid = data.get('conversationId')
+    convo = Conversation.objects.get(id=convoid)
+    messages = Message.objects.filter(conversation=convo)
+    for m in messages:
+        m.already_read.add(User.objects.get(username=username))
+        m.save()
+    return JsonResponse({'code': 0, 'info': 'Success'}, status=200)
+
+
+@require_http_methods(["POST"])
+def join_conversation(request: HttpRequest, conversation_id: int) -> HttpResponse:
+    data = json.loads(request.body)
+    username = data.get('username')
+
+    # 验证 conversation_id 和 username 的合法性
+    try:
+        conversation = Conversation.objects.prefetch_related('members').get(id=conversation_id) 
+    except Conversation.DoesNotExist:
+        return JsonResponse({'error': 'Invalid conversation ID'}, status=404)
+
+    if conversation.type == 'private_chat':
+        return JsonResponse({'error': 'Unable to join private chat'}, status=403)
+    
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'Invalid username'}, status=404)
+    
+    conversation.members.add(user)
+
+    return JsonResponse({'result': 'success'}, status=200)
+
+@require_http_methods(["POST"])
+def leave_conversation(request: HttpRequest, conversation_id: int) -> HttpResponse:
+    data = json.loads(request.body)
+    username = data.get('username')
+
+    # 验证 conversation_id 和 username 的合法性
+    try:
+        conversation = Conversation.objects.prefetch_related('members').get(id=conversation_id) 
+    except Conversation.DoesNotExist:
+        return JsonResponse({'error': 'Invalid conversation ID'}, status=404)
+
+    if conversation.type == 'private_chat':
+        return JsonResponse({'error': 'Unable to leave private chat'}, status=403)
+    
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'Invalid username'}, status=404)
+    
+    conversation.members.remove(user)
+
+    return JsonResponse({'result': 'success'}, status=200)
+    
+def to_timestamp(dt: datetime) -> int:
+    # 转换为毫秒级 UNIX 时间戳
+    return int(dt.timestamp() * 1_000)
+
+def format_message(message: Message) -> dict:
+    ret = {
+        'id': message.id,
+        'conversation': message.conversation.id,
+        'sender': message.sender.username,
+        # 'receivers': [user.username for user in message.receivers.all()],
+        'content': message.content,
+        'timestamp': to_timestamp(message.timestamp),
+        # 'reply_to_id': message.reply_to_id,
+        'responseCount': message.response_count,
+        # 'isRead': bool(len(message.already_read) == 2),
+        'readBy': [user.username for user in message.already_read.all()],
+        'avatar': message.sender.avatar,
+        # 'conversationType': message.conversation.type,
+    }
+    if message.reply_to_id:
+        ret['reply_to'] = message.reply_to_id
+    return ret
+
+def format_conversation(conversation: Conversation) -> dict:
+    return {
+        'id': conversation.id,
+        'type': conversation.type,
+        'members': [user.username for user in conversation.members.all()],
+    }

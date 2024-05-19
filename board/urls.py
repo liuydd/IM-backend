@@ -4,6 +4,7 @@ from . import views
 urlpatterns = [
     path('register', views.register),
     path('login', views.user_login, name='login'),
+    path('checkPassword', views.check_password),
     path('logout', views.user_logout),
     path('delete_user', views.delete_account),
     path('friends/delete', views.delete_friend),
@@ -24,5 +25,13 @@ urlpatterns = [
     path('group/list_announcement', views.list_announcement),
     path('group/invitation/send', views.send_invitation),
     path('group/invitation/process', views.process_invitation),
-    path('group/invitation/get', views.get_invitation)
+    path('group/invitation/get', views.get_invitation),
+    path('messages/read', views.read_message),
+    path('messages/filter', views.filter_messages),
+    path('messages/detail', views.detailed_info),
+    path('conversations/<int:conversation_id>/join', views.join_conversation),
+    path('conversations/<int:conversation_id>/leave', views.leave_conversation),
+    path('messages', views.messages),
+    path('conversations', views.conversations),
+    path('group/bind', views.bind_group_convo)
 ]

@@ -13,6 +13,7 @@ class User(models.Model):
     created_time = models.FloatField(default=utils_time.get_timestamp)
     email = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
     phone_number = models.CharField(max_length=MAX_CHAR_LENGTH, blank=True)
+    avatar = models.CharField(max_length=MAX_CHAR_LENGTH,default='faye')
     
     class Meta:
         indexes = [models.Index(fields=["username"])]
@@ -22,7 +23,8 @@ class User(models.Model):
             "userid": self.userid, 
             "username": self.username,
             "email": self.email,
-            "phoneNumber": self.phone_number
+            "phoneNumber": self.phone_number,
+            "avatar": self.avatar
         }
     
     
@@ -30,6 +32,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     friends = models.ManyToManyField(User, blank=True, related_name="friend")
     groups = models.ManyToManyField('Group', blank=True)
+    avatar = models.CharField(max_length=MAX_CHAR_LENGTH, default='faye')
     
     
 class Label(models.Model):
@@ -42,6 +45,7 @@ class Friendship(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendships_as_user')  
     friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friendship_as_friend')
     labels = models.ManyToManyField(Label, blank=True)
+    convo = models.ForeignKey('Conversation', on_delete=models.CASCADE, null=True, blank=True)
     
     class Meta:
         unique_together = ('user', 'friend')  
@@ -52,23 +56,27 @@ class Friendship(models.Model):
             "friendid": self.friend.userid,
             "labels": list(self.labels.values_list('labelname', flat=True))
         }
-    
 
-class PrivateChat(models.Model):
-    user1 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="private_chat_1")
-    user2 = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="private_chat_2")
-    messages = models.ManyToManyField('Message', blank=True)
+class Conversation(models.Model):
+    TYPE_CHOICES = [
+        ('private_chat', 'Private Chat'),
+        ('group_chat', 'Group Chat'),
+    ]
+    id = models.BigAutoField(primary_key=True)
+    type = models.CharField(max_length=12, choices=TYPE_CHOICES)
+    members = models.ManyToManyField(User, related_name='conversations')
 
-    
 class Message(models.Model):
-    msgid = models.BigAutoField(primary_key=True)
-    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="sent_messages")
-    receiver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="received_messages")
-    private_chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="private_messages")
+    id = models.BigAutoField(primary_key=True)
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE, null=True, blank=True)
+    sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
+    receivers = models.ManyToManyField(User, related_name='received_messages')
+    already_read = models.ManyToManyField(User, related_name='read_messages')
     content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
+    response_count = models.IntegerField(default=0)
+    reply_to_id = models.IntegerField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    
 class Group(models.Model):
     groupid = models.BigAutoField(primary_key=True)
     groupname = models.CharField(max_length=MAX_CHAR_LENGTH)
@@ -76,6 +84,7 @@ class Group(models.Model):
     managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
     members = models.ManyToManyField(User, blank=True, related_name='member_of_group')
     announcements = models.ManyToManyField('Announcement', blank=True)
+    conversationid = models.IntegerField(blank=True, null=True)
     
     def serialize(self):
         return {
@@ -84,7 +93,8 @@ class Group(models.Model):
             "monitor": self.monitor.username,
             "managers": [{"name": m.username, "id": m.userid} for m in self.managers.all()],
             "members": [{"name": m.username, "id": m.userid} for m in self.members.all()],
-            "announcements": list(self.announcements.values_list('content', flat=True))
+            "announcements": list(self.announcements.values_list('content', flat=True)),
+            "conversationid": self.conversationid
         }
     
 
@@ -125,6 +135,7 @@ class Invitation(models.Model):
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_invitations")
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="invitations")
     timestamp = models.DateTimeField(auto_now_add=True)
+    # conversationid = models.IntegerField(null=True, blank=True)
     
     def serialize(self):
         return {
@@ -133,5 +144,6 @@ class Invitation(models.Model):
             'sender': self.sender.username,
             "receiverid": self.receiver.userid,
             'receiver': self.receiver.username,
-            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            'conversationid': self.group.conversationid,
         }

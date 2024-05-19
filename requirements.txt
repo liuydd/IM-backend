@@ -11,3 +11,5 @@ pytest-django
 coverage
 djangorestframework
 pyjwt
+channels
+daphne==4.1.0
