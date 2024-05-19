@@ -305,10 +305,8 @@ def create_group(req: HttpRequest):
     for i in members:
         new_group.members.add(i)
     new_group.members.add(user)
-    return request_success({
-        "code": 0, 
-        "info": "Group created successfully"
-    })
+    
+    return conversations(req)
   
     
 @CheckRequire
@@ -690,7 +688,7 @@ def conversations(request: HttpRequest) -> HttpResponse:
                     return JsonResponse(format_conversation(conv), status=200)
 
         conversation = Conversation.objects.create(type=conversation_type)
-        conversation.members.set(members)
+        conversation.members.set(members)        
         return JsonResponse(format_conversation(conversation), status=200)
 
     if request.method != "GET":
@@ -755,6 +753,54 @@ def read_message(req: HttpRequest):
         m.already_read.add(User.objects.get(username=username))
         m.save()
     return JsonResponse({'code': 0, 'info': 'Success'}, status=200)
+
+
+@require_http_methods(["POST"])
+def join_conversation(request: HttpRequest, conversation_id: int) -> HttpResponse:
+    data = json.loads(request.body)
+    username = data.get('username')
+
+    # 验证 conversation_id 和 username 的合法性
+    try:
+        conversation = Conversation.objects.prefetch_related('members').get(id=conversation_id) 
+    except Conversation.DoesNotExist:
+        return JsonResponse({'error': 'Invalid conversation ID'}, status=404)
+
+    if conversation.type == 'private_chat':
+        return JsonResponse({'error': 'Unable to join private chat'}, status=403)
+    
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'Invalid username'}, status=404)
+    
+    conversation.members.add(user)
+
+    return JsonResponse({'result': 'success'}, status=200)
+
+@require_http_methods(["POST"])
+def leave_conversation(request: HttpRequest, conversation_id: int) -> HttpResponse:
+    data = json.loads(request.body)
+    username = data.get('username')
+
+    # 验证 conversation_id 和 username 的合法性
+    try:
+        conversation = Conversation.objects.prefetch_related('members').get(id=conversation_id) 
+    except Conversation.DoesNotExist:
+        return JsonResponse({'error': 'Invalid conversation ID'}, status=404)
+
+    if conversation.type == 'private_chat':
+        return JsonResponse({'error': 'Unable to leave private chat'}, status=403)
+    
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'Invalid username'}, status=404)
+    
+    conversation.members.remove(user)
+
+    return JsonResponse({'result': 'success'}, status=200)
+
     
 def to_timestamp(dt: datetime) -> int:
     # 转换为毫秒级 UNIX 时间戳
