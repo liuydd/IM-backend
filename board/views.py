@@ -307,9 +307,22 @@ def create_group(req: HttpRequest):
     new_group.members.add(user)
     return request_success({
         "code": 0, 
-        "info": "Group created successfully"
+        "info": "Group created successfully",
+        "groupid": new_group.groupid
     })
-  
+
+def bind_group_convo(req: HttpRequest):
+    if req.method != "POST":
+        return BAD_METHOD
+    body = json.loads(req.body.decode("utf-8"))
+    group = Group.objects.get(groupid=int(body["groupid"]))
+    convo_id = body["conversation_id"]
+    group.conversationid = convo_id
+    group.save()
+    return request_success({
+        "code": 0,
+        "info": "Succeed"
+    })
     
 @CheckRequire
 def transfer_monitor(req: HttpRequest):

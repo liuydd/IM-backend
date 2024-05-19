@@ -84,6 +84,7 @@ class Group(models.Model):
     managers = models.ManyToManyField(User, blank=True, related_name="manage_group")
     members = models.ManyToManyField(User, blank=True, related_name='member_of_group')
     announcements = models.ManyToManyField('Announcement', blank=True)
+    conversationid = models.IntegerField(blank=True, null=True)
     
     def serialize(self):
         return {
@@ -92,7 +93,8 @@ class Group(models.Model):
             "monitor": self.monitor.username,
             "managers": [{"name": m.username, "id": m.userid} for m in self.managers.all()],
             "members": [{"name": m.username, "id": m.userid} for m in self.members.all()],
-            "announcements": list(self.announcements.values_list('content', flat=True))
+            "announcements": list(self.announcements.values_list('content', flat=True)),
+            "conversationid": self.conversationid
         }
     
 
