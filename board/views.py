@@ -305,8 +305,10 @@ def create_group(req: HttpRequest):
     for i in members:
         new_group.members.add(i)
     new_group.members.add(user)
-    
-    return conversations(req)
+    return request_success({
+        "code": 0, 
+        "info": "Group created successfully"
+    })
   
     
 @CheckRequire
@@ -692,7 +694,7 @@ def conversations(request: HttpRequest) -> HttpResponse:
                     # 找到了一个已存在的私人聊天，直接返回
                     return JsonResponse(format_conversation(conv), status=200)
         conversation = Conversation.objects.create(type=conversation_type)
-        conversation.members.set(members)        
+        conversation.members.set(members)
         return JsonResponse(format_conversation(conversation), status=200)
 
     if request.method != "GET":
@@ -804,7 +806,6 @@ def leave_conversation(request: HttpRequest, conversation_id: int) -> HttpRespon
     conversation.members.remove(user)
 
     return JsonResponse({'result': 'success'}, status=200)
-
     
 def to_timestamp(dt: datetime) -> int:
     # 转换为毫秒级 UNIX 时间戳
