@@ -120,8 +120,8 @@ def delete_friend(req: HttpRequest):
         friendship = Friendship.objects.get(user=friend, friend=user)
         friendship.delete()
         members = [user, friend]
-        convo = Conversation.objects.filter(members__in=members, type='private_chat').prefetch_related('members').distinct().first()
-        convo.delete()
+        # convo = Conversation.objects.filter(members__in=members, type='private_chat').prefetch_related('members').distinct().first()
+        # convo.delete()
         return request_success({"code": 0, "info": "Success"})
     except:
         return request_failed(1, "Target user not in friend list", status_code=404)
