@@ -529,15 +529,18 @@ def process_invitation(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     response = body["response"]
     invitation = Invitation.objects.get(id=body["invitationid"])
+    tar = ''
     if response == "Accept":
         target = invitation.receiver
+        tar = target.username
         group = invitation.group
         group.members.add(target)
     
     invitation.delete()
     return request_success({
         "code": 0,
-        "info": "Succeed"
+        "info": "Succeed",
+        'target': tar
     })
     
 def delete_message(req: HttpRequest):

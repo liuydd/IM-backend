@@ -135,6 +135,7 @@ class Invitation(models.Model):
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_invitations")
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="invitations")
     timestamp = models.DateTimeField(auto_now_add=True)
+    # conversationid = models.IntegerField(null=True, blank=True)
     
     def serialize(self):
         return {
@@ -143,5 +144,6 @@ class Invitation(models.Model):
             'sender': self.sender.username,
             "receiverid": self.receiver.userid,
             'receiver': self.receiver.username,
-            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+            'conversationid': self.group.conversationid,
         }
