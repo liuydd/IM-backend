@@ -300,7 +300,8 @@ def create_group(req: HttpRequest):
     body = json.loads(req.body.decode("utf-8"))
     user = User.objects.get(userid=body["userid"])
     members = [User.objects.get(userid=i) for i in body["members"]]
-    members.append(user)
+    if user not in members:
+        members.append(user)
     groupname = ", ".join([member.username for member in members])
     new_group = Group.objects.create(monitor=user, groupname=groupname)
     for i in members:
