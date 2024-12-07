@@ -19,6 +19,6 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 python3 manage.py runserver
 ```
 
-这会在 `localhost:8000` 开启服务端进行监听网络请求。你可以打开浏览器，访问 http://localhost:8000/startup 来检查服务端是否正常启动。如果正常启动，你会看到含有 "Congratulations! You have successfully installed the requirements. Go ahead!" 的网页。
+这会在 `localhost:8000` 开启服务端进行监听网络请求。你可以打开浏览器，访问 http://localhost:8000/startup 来检查服务端是否正常启动。
 
 
